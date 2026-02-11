@@ -13,7 +13,9 @@ from dotenv import load_dotenv
 load_dotenv()
 from datetime import datetime, timedelta, timezone
 from anthropic import Anthropic
-import resend
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 # ==================== Configuration ====================
 
@@ -46,13 +48,10 @@ RSS_SOURCES = {
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 
-# Resend email configuration
-RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
-EMAIL_FROM = 'Daily News <onboarding@resend.dev>'  # Free test domain
-EMAIL_TO = os.environ.get('EMAIL_TO')  # Recipients, comma-separated
-
-# To use a custom domain:
-# EMAIL_FROM = 'Daily News <news@yourdomain.com>'
+# Gmail SMTP configuration
+GMAIL_USER = os.environ.get('GMAIL_USER')        # your.address@gmail.com
+GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')  # 16-char App Password
+EMAIL_TO = os.environ.get('EMAIL_TO')            # Recipients, comma-separated
 
 # ==================== Core functions ====================
 
@@ -339,36 +338,33 @@ def build_email_html(body_markdown):
 </html>"""
 
 
-def send_email_resend(subject, body_markdown, recipients):
+def send_email_gmail(subject, body_markdown, recipients):
     """
-    Send an HTML email via Resend.
+    Send an HTML email via Gmail SMTP using an App Password.
 
     Args:
         subject: Email subject line
         body_markdown: Email body in markdown format
         recipients: List of recipient addresses
     """
-    if not RESEND_API_KEY:
-        print("⚠️ RESEND_API_KEY not set, skipping email")
+    if not GMAIL_USER or not GMAIL_APP_PASSWORD:
+        print("⚠️ GMAIL_USER or GMAIL_APP_PASSWORD not set, skipping email")
         return
-
-    resend.api_key = RESEND_API_KEY
 
     html = build_email_html(body_markdown)
 
+    msg = MIMEMultipart('alternative')
+    msg['Subject'] = subject
+    msg['From'] = GMAIL_USER
+    msg['To'] = ', '.join(recipients)
+    msg.attach(MIMEText(html, 'html'))
+
     try:
-        print(f"Sending email via Resend to {', '.join(recipients)}...")
-
-        params = {
-            "from": EMAIL_FROM,
-            "to": recipients,
-            "subject": subject,
-            "html": html,
-        }
-
-        email = resend.Emails.send(params)
-        print(f"✅ Email sent. ID: {email.get('id', 'N/A')}")
-
+        print(f"Sending email via Gmail to {', '.join(recipients)}...")
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+            server.sendmail(GMAIL_USER, recipients, msg.as_string())
+        print("✅ Email sent.")
     except Exception as e:
         print(f"❌ Failed to send email: {e}")
 
@@ -411,7 +407,7 @@ def main():
     if EMAIL_TO:
         recipients = [email.strip() for email in EMAIL_TO.split(',')]
         subject = f"📰 每日新闻摘要 - {datetime.now().strftime('%Y年%m月%d日')}"
-        send_email_resend(subject, summary, recipients)
+        send_email_gmail(subject, summary, recipients)
     else:
         print("\n⚠️ EMAIL_TO not set, skipping email")
 
