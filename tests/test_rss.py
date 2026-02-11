@@ -6,6 +6,7 @@ Checks reachability and reports article counts.
 
 import sys
 import os
+import socket
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import feedparser
@@ -21,7 +22,9 @@ def test_feed(url):
     Fetch a single feed and return a result dict.
     """
     try:
-        feed = feedparser.parse(url)
+        socket.setdefaulttimeout(15)
+        feed = feedparser.parse(url, agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+        socket.setdefaulttimeout(None)
 
         if feed.bozo and not feed.entries:
             return {"ok": False, "error": str(feed.bozo_exception)}

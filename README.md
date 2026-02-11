@@ -6,7 +6,7 @@ Runs daily on GitHub Actions at 08:00 PST / 09:00 PDT (UTC 16:00).
 
 ## How it works
 
-1. Fetches articles published in the last 24 hours from RSS feeds across four categories
+1. Fetches articles published in the last 24 hours from RSS feeds across five categories
 2. Passes the raw articles to Claude, which selects the most newsworthy items and writes concise Chinese summaries
 3. Renders the markdown output as HTML and sends it via Gmail SMTP
 
@@ -14,9 +14,10 @@ Runs daily on GitHub Actions at 08:00 PST / 09:00 PDT (UTC 16:00).
 
 | Category | Sources |
 |---|---|
-| World Politics | The Guardian, BBC, NPR |
-| Economy & Business | Financial Times, Reuters (via Google News), WSJ Markets |
-| Tech & AI | TechCrunch, The Verge, Ars Technica, Wired, Techmeme |
+| Tech & AI | The Verge, Wired, Techmeme |
+| Global Affairs | The Guardian, BBC, NYT |
+| Business & Finance | Financial Times, Reuters (via Google News), WSJ Markets |
+| Pacific Northwest | Seattle Times, CBC British Columbia |
 | Health & Science | ScienceDaily, Nature, NPR Health |
 
 ## Setup

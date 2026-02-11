@@ -6,7 +6,7 @@
 
 ### Implemented
 
-- **RSS fetching:** 4 categories (World Politics, Economy & Business, Tech & AI, Health & Science), 11 sources total
+- **RSS fetching:** 5 categories (Tech & AI, Global Affairs, Business & Finance, Pacific Northwest, Health & Science), 12 sources total
 - **Time filtering:** articles from the last 24 hours only
 - **Image extraction:** multi-strategy (media_thumbnail → media_content → HTML img tag)
 - **Claude summarization:** Anthropic API, Chinese markdown output

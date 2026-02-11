@@ -6,6 +6,7 @@ Uses RSS + Claude API + Resend email
 
 import os
 import re
+import socket
 import feedparser
 import markdown as md
 from dotenv import load_dotenv
@@ -21,24 +22,29 @@ from email.mime.text import MIMEText
 
 # RSS sources grouped by category
 RSS_SOURCES = {
-    '国际政治': [
+    'Tech & AI': [
+        # 'https://techcrunch.com/feed/',
+        'https://www.theverge.com/rss/index.xml',
+        # 'https://arstechnica.com/feed/',
+        'https://www.wired.com/feed/rss',
+        'https://www.techmeme.com/feed.xml',
+    ],
+    'Global Affairs': [
         'https://www.theguardian.com/world/rss',
         'https://feeds.bbci.co.uk/news/world/rss.xml',
-        'https://www.npr.org/rss/rss.php?id=1004',
+        # 'https://www.npr.org/rss/rss.php?id=1004',
+        'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml',  # NYT Homepage
     ],
-    '经济与商业': [
+    'Business & Finance': [
         'https://www.ft.com/rss/home',
         'https://news.google.com/rss/search?q=when:24h+allinurl:reuters.com+business&ceid=US:en&hl=en-US&gl=US',
         'https://feeds.a.dj.com/rss/RSSMarketsMain.xml',  # WSJ Markets
     ],
-    '科技与AI': [
-        'https://techcrunch.com/feed/',
-        'https://www.theverge.com/rss/index.xml',
-        'https://arstechnica.com/feed/',
-        'https://www.wired.com/feed/rss',
-        'https://www.techmeme.com/feed.xml',
+    'Pacific Northwest': [
+        'https://www.seattletimes.com/seattle-news/feed/',
+        'https://www.cbc.ca/webfeed/rss/rss-canada-britishcolumbia',  # CBC BC
     ],
-    '健康与科学': [
+    'Health & Science': [
         'https://www.sciencedaily.com/rss/all.xml',
         'https://www.nature.com/nature.rss',
         'https://feeds.npr.org/1007/rss.xml',  # NPR Health
@@ -125,9 +131,14 @@ def fetch_rss_articles(category, feeds, hours=24):
 
     for feed_url in feeds:
         try:
-            feed = feedparser.parse(feed_url)
+            socket.setdefaulttimeout(15)
+            feed = feedparser.parse(feed_url, agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+            socket.setdefaulttimeout(None)
 
+            feed_article_count = 0
             for entry in feed.entries:
+                if feed_article_count >= 4:  # Max 4 articles per feed
+                    break
                 # Parse publish time
                 if hasattr(entry, 'published_parsed'):
                     pub_date = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)
@@ -138,6 +149,7 @@ def fetch_rss_articles(category, feeds, hours=24):
 
                 # Only keep articles within the time window
                 if pub_date >= cutoff_time:
+                    feed_article_count += 1
                     articles.append({
                         'title': entry.title,
                         'link': entry.link,
@@ -168,7 +180,7 @@ def generate_summary_with_claude(all_articles):
         str: Generated Chinese digest in markdown
     """
     if not ANTHROPIC_API_KEY:
-        raise ValueError("请设置 ANTHROPIC_API_KEY 环境变量")
+        raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
 
     # Build the content block sent to Claude
     articles_by_category = []
@@ -177,7 +189,7 @@ def generate_summary_with_claude(all_articles):
             continue
 
         category_text = f"\n## {category}\n\n"
-        for i, article in enumerate(articles[:10], 1):  # Max 10 articles per category
+        for i, article in enumerate(articles[:15], 1):  # Max 15 articles per category
             category_text += f"[{i}] {article['title']}\n"
             category_text += f"来源: {article['source']}\n"
             category_text += f"时间: {article['published']}\n"
@@ -199,8 +211,8 @@ def generate_summary_with_claude(all_articles):
 请按以下要求生成中文新闻摘要：
 
 **输出要求：**
-1. 分为4个板块：国际政治、经济与商业、科技与AI、健康与科学
-2. 每个板块选出最重要的4条新闻
+1. 分为5个板块：科技与AI、国际政治、经济与商业、太平洋西北地区、健康与科学
+2. 每个板块选出最重要的5条新闻
 3. 每条新闻包含：
    - 中文标题
    - 100-150字中文摘要
@@ -208,7 +220,7 @@ def generate_summary_with_claude(all_articles):
    - 来源媒体名称
 
 **格式示例：**
-## 🌍 国际政治
+## 💻 科技与AI
 
 ### 1. [中文标题]
 ![](图片URL)
@@ -242,7 +254,7 @@ def generate_summary_with_claude(all_articles):
 
     message = client.messages.create(
         model=CLAUDE_MODEL,
-        max_tokens=8000,
+        max_tokens=10000,
         messages=[{
             "role": "user",
             "content": prompt

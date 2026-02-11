@@ -51,9 +51,10 @@ pyproject.toml             # uv dependencies
 
 | Category | Sources |
 |---|---|
-| World Politics | The Guardian, BBC, NPR |
-| Economy & Business | FT, Reuters (via Google News RSS), WSJ Markets |
-| Tech & AI | TechCrunch, The Verge, Ars Technica, Wired, Techmeme |
+| Tech & AI | The Verge, Wired, Techmeme (TechCrunch + Ars Technica commented out) |
+| Global Affairs | The Guardian, BBC, NYT (NPR commented out) |
+| Business & Finance | FT, Reuters (via Google News RSS), WSJ Markets |
+| Pacific Northwest | Seattle Times, CBC British Columbia |
 | Health & Science | ScienceDaily, Nature, NPR Health |
 
 Note: Reuters official RSS is dead. Using Google News RSS proxy:
@@ -61,10 +62,9 @@ Note: Reuters official RSS is dead. Using Google News RSS proxy:
 
 ## Image extraction coverage
 
-- `media_thumbnail`: BBC, Ars Technica
-- `media_content`: Guardian, Ars Technica
+- `media_thumbnail`: BBC
+- `media_content`: Guardian
 - HTML `<img>` parse from `entry.content`: The Verge
-- TechCrunch: no images (text-only feed)
 
 ## Env vars
 
