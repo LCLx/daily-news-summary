@@ -79,6 +79,15 @@ Add the following secrets to your repository under **Settings → Secrets and va
 |---|---|
 | `GMAIL_USER` | Gmail address used to send |
 | `EMAIL_TO` | Recipient address(es), comma-separated |
+| `CLAUDE_MODEL` | Claude model ID (see options below, default: `claude-haiku-4-5-20251001`) |
+
+Available models:
+
+| Model | Cost/run | Quality |
+|---|---|---|
+| `claude-haiku-4-5-20251001` | ~$0.01 | Good — fast, cheap |
+| `claude-sonnet-4-5-20250929` | ~$0.10 | Better — recommended for quality |
+| `claude-opus-4-6` | ~$0.50 | Best — highest quality |
 
 The workflow runs automatically on schedule and can also be triggered manually via `workflow_dispatch`.
 
@@ -87,7 +96,6 @@ The workflow runs automatically on schedule and can also be triggered manually v
 All configuration lives in `daily_news.py`:
 
 - **`RSS_SOURCES`** — add or remove feeds per category; the dict key becomes the section heading passed to Claude
-- **`CLAUDE_MODEL`** — switch between Haiku and Sonnet to balance cost vs. quality
 - **`hours` parameter** in `fetch_rss_articles()` — controls the lookback window (default: 24h)
 - **Prompt** in `generate_summary_with_claude()` — controls output format and article count per section
 
@@ -95,7 +103,7 @@ All configuration lives in `daily_news.py`:
 
 | Service | Cost |
 |---|---|
-| Claude Haiku 4.5 | ~$0.01/run · ~$0.30/month |
+| Claude (Haiku, default) | ~$0.01/run · ~$0.30/month |
 | Gmail SMTP | Free |
 
 ## Stack

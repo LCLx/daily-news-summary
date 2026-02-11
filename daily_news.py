@@ -36,6 +36,7 @@ RSS_SOURCES = {
         'https://www.theverge.com/rss/index.xml',
         'https://arstechnica.com/feed/',
         'https://www.wired.com/feed/rss',
+        'https://www.techmeme.com/feed.xml',
     ],
     '健康与科学': [
         'https://www.sciencedaily.com/rss/all.xml',
@@ -46,7 +47,7 @@ RSS_SOURCES = {
 
 # Claude API configuration
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
-CLAUDE_MODEL = "claude-haiku-4-5-20251001"
+CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL', 'claude-haiku-4-5-20251001')
 
 # Gmail SMTP configuration
 GMAIL_USER = os.environ.get('GMAIL_USER')        # your.address@gmail.com
