@@ -43,7 +43,7 @@ uv sync
 # EMAIL_TO=recipient@example.com
 
 # Run
-uv run daily_news.py
+uv run src/daily_news.py
 ```
 
 ### Testing
@@ -64,21 +64,19 @@ uv run tests/test_integration.py
 
 ### GitHub Actions
 
-Add the following secrets to your repository under **Settings → Secrets and variables → Actions**:
-
-**Secrets** (Settings → Secrets and variables → Actions → Secrets):
+Add the following secrets to your repository under **Settings → Secrets and variables → Actions → Secrets**:
 
 | Secret | Description |
 |---|---|
 | `ANTHROPIC_API_KEY` | Anthropic API key |
+| `GMAIL_USER` | Gmail address used to send |
 | `GMAIL_APP_PASSWORD` | 16-character Gmail App Password |
+| `EMAIL_TO` | Recipient address(es), comma-separated |
 
 **Variables** (Settings → Secrets and variables → Actions → Variables):
 
 | Variable | Description |
 |---|---|
-| `GMAIL_USER` | Gmail address used to send |
-| `EMAIL_TO` | Recipient address(es), comma-separated |
 | `CLAUDE_MODEL` | Claude model ID (see options below, default: `claude-haiku-4-5-20251001`) |
 
 Available models:
