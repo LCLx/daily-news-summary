@@ -4,6 +4,10 @@ Test all RSS feeds defined in daily_news.py.
 Checks reachability and reports article counts.
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
 import feedparser
 from datetime import datetime, timedelta, timezone
 from daily_news import RSS_SOURCES

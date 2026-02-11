@@ -5,6 +5,7 @@ Uses RSS + Claude API + Resend email
 """
 
 import os
+import re
 import feedparser
 import markdown as md
 from dotenv import load_dotenv
@@ -43,7 +44,7 @@ RSS_SOURCES = {
 
 # Claude API configuration
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
-CLAUDE_MODEL = "claude-sonnet-4-5-20250929"
+CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 
 # Resend email configuration
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY')
@@ -54,6 +55,57 @@ EMAIL_TO = os.environ.get('EMAIL_TO')  # Recipients, comma-separated
 # EMAIL_FROM = 'Daily News <news@yourdomain.com>'
 
 # ==================== Core functions ====================
+
+def extract_image_url(entry):
+    """
+    Extract a thumbnail image URL from a feedparser entry.
+    Tries fields in priority order; returns None if nothing found.
+    """
+    def is_valid_image_url(url):
+        """Reject favicons, tiny icons, and non-image files."""
+        if not url:
+            return False
+        lower = url.lower()
+        # Reject favicon files and known non-article-image domains
+        if 'favicon' in lower:
+            return False
+        if lower.endswith(('.ico', '.svg', '.mp4', '.webm', '.ogg')):
+            return False
+        # Google News RSS only has the site favicon, not article images
+        if url.startswith('https://news.google.com/'):
+            return False
+        return True
+
+    # 1. media:thumbnail (BBC, Ars Technica)
+    thumbnails = getattr(entry, 'media_thumbnail', None)
+    if thumbnails:
+        url = thumbnails[0].get('url')
+        if is_valid_image_url(url):
+            return url
+
+    # 2. media:content (Guardian, Ars Technica) — last item tends to be largest
+    media = getattr(entry, 'media_content', None)
+    if media:
+        url = media[-1].get('url', '')
+        if is_valid_image_url(url):
+            return url
+
+    # 3. <img> in Atom content (The Verge)
+    content = getattr(entry, 'content', None)
+    if content:
+        match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', content[0].get('value', ''))
+        if match and is_valid_image_url(match.group(1)):
+            return match.group(1)
+
+    # 4. <img> in summary HTML
+    summary = entry.get('summary', '')
+    if summary:
+        match = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', summary)
+        if match and is_valid_image_url(match.group(1)):
+            return match.group(1)
+
+    return None
+
 
 def fetch_rss_articles(category, feeds, hours=24):
     """
@@ -93,10 +145,11 @@ def fetch_rss_articles(category, feeds, hours=24):
                         'published': pub_date.strftime('%Y-%m-%d %H:%M'),
                         'summary': entry.get('summary', '')[:300],
                         'source': feed.feed.get('title', 'Unknown'),
-                        'category': category
+                        'category': category,
+                        'image_url': extract_image_url(entry),
                     })
         except Exception as e:
-            print(f"⚠️ 获取 {feed_url} 失败: {e}")
+            print(f"⚠️ Failed to fetch {feed_url}: {e}")
             continue
 
     # Sort by datetime object (newest first)
@@ -129,7 +182,10 @@ def generate_summary_with_claude(all_articles):
             category_text += f"来源: {article['source']}\n"
             category_text += f"时间: {article['published']}\n"
             category_text += f"链接: {article['link']}\n"
-            category_text += f"摘要: {article['summary']}\n\n"
+            category_text += f"摘要: {article['summary']}\n"
+            if article.get('image_url'):
+                category_text += f"图片: {article['image_url']}\n"
+            category_text += "\n"
 
         articles_by_category.append(category_text)
 
@@ -155,6 +211,7 @@ def generate_summary_with_claude(all_articles):
 ## 🌍 国际政治
 
 ### 1. [中文标题]
+![](图片URL)
 [中文摘要，100-150字]
 
 🔗 原文: [原始英文标题](链接)
@@ -170,11 +227,18 @@ def generate_summary_with_claude(all_articles):
 - 链接使用标准markdown格式
 - 选择最有新闻价值和影响力的内容
 - 摘要要准确、客观、简洁
-- 直接输出内容，不要有任何开场白或结束语"""
+- 直接输出内容，不要有任何开场白或结束语
+- 如果文章提供了"图片"字段，在中文标题下一行插入 ![](图片URL)；没有"图片"字段则**绝对不能**插入任何图片，不要自行补充或猜测图片URL
+
+**选稿标准：**
+- 优先选影响全球格局的重大事件，避免软新闻和娱乐性内容
+- 同一事件只选一条，选报道最完整的
+- 科技板块优先选 AI 相关新闻
+"""
 
     client = Anthropic(api_key=ANTHROPIC_API_KEY)
 
-    print("正在调用Claude API生成摘要...")
+    print("Calling Claude API to generate digest...")
 
     message = client.messages.create(
         model=CLAUDE_MODEL,
@@ -199,6 +263,8 @@ def build_email_html(body_markdown):
         str: Full HTML document string
     """
     body_html = md.markdown(body_markdown, extensions=['extra'])
+    # Hide broken images (hotlink-blocked or expired URLs) instead of showing broken icon
+    body_html = body_html.replace('<img ', '<img onerror="this.style.display=\'none\'" ')
 
     return f"""<!DOCTYPE html>
 <html>
@@ -221,8 +287,19 @@ def build_email_html(body_markdown):
       }}
       h3 {{
         color: #34495e;
-        margin-top: 25px;
-        margin-bottom: 10px;
+        margin-top: 32px;
+        margin-bottom: 8px;
+        padding-top: 24px;
+        border-top: 1px solid #eee;
+      }}
+      img {{
+        display: block !important;
+        width: 100% !important;
+        max-width: 600px !important;
+        height: auto !important;
+        max-height: 450px !important;
+        border-radius: 6px;
+        margin: 8px 0 14px;
       }}
       a {{
         color: #3498db;
@@ -272,7 +349,7 @@ def send_email_resend(subject, body_markdown, recipients):
         recipients: List of recipient addresses
     """
     if not RESEND_API_KEY:
-        print("⚠️ 未设置 RESEND_API_KEY，跳过发送")
+        print("⚠️ RESEND_API_KEY not set, skipping email")
         return
 
     resend.api_key = RESEND_API_KEY
@@ -280,7 +357,7 @@ def send_email_resend(subject, body_markdown, recipients):
     html = build_email_html(body_markdown)
 
     try:
-        print(f"正在通过Resend发送邮件到 {', '.join(recipients)}...")
+        print(f"Sending email via Resend to {', '.join(recipients)}...")
 
         params = {
             "from": EMAIL_FROM,
@@ -290,34 +367,34 @@ def send_email_resend(subject, body_markdown, recipients):
         }
 
         email = resend.Emails.send(params)
-        print(f"✅ 邮件发送成功！Email ID: {email.get('id', 'N/A')}")
+        print(f"✅ Email sent. ID: {email.get('id', 'N/A')}")
 
     except Exception as e:
-        print(f"❌ 邮件发送失败: {e}")
+        print(f"❌ Failed to send email: {e}")
 
 
 def main():
     """Main entry point."""
     print("=" * 60)
-    print("📰 每日新闻摘要生成器")
+    print("📰 Daily News Digest")
     print("=" * 60)
     print()
 
     # 1. Fetch all RSS articles
-    print("📥 正在获取RSS文章...")
+    print("📥 Fetching RSS articles...")
     all_articles = {}
 
     for category, feeds in RSS_SOURCES.items():
         print(f"  - {category}...")
         articles = fetch_rss_articles(category, feeds)
         all_articles[category] = articles
-        print(f"    找到 {len(articles)} 篇最新文章")
+        print(f"    {len(articles)} recent articles")
 
     total_articles = sum(len(articles) for articles in all_articles.values())
-    print(f"\n✅ 共获取 {total_articles} 篇文章\n")
+    print(f"\n✅ {total_articles} articles fetched\n")
 
     if total_articles == 0:
-        print("⚠️ 没有找到任何新闻，程序退出")
+        print("⚠️ No articles found, exiting")
         return
 
     # 2. Generate digest via Claude
@@ -325,7 +402,7 @@ def main():
 
     # 3. Print to console
     print("\n" + "=" * 60)
-    print("📋 生成的摘要：")
+    print("📋 Generated digest:")
     print("=" * 60)
     print(summary)
     print("=" * 60)
@@ -336,9 +413,9 @@ def main():
         subject = f"📰 每日新闻摘要 - {datetime.now().strftime('%Y年%m月%d日')}"
         send_email_resend(subject, summary, recipients)
     else:
-        print("\n⚠️ 未设置 EMAIL_TO，跳过邮件发送")
+        print("\n⚠️ EMAIL_TO not set, skipping email")
 
-    print("\n✅ 完成！")
+    print("\n✅ Done!")
 
 
 if __name__ == '__main__':
