@@ -1,6 +1,6 @@
 # daily-news-summary
 
-Automated daily news digest that fetches articles from RSS feeds, summarizes them in Chinese using the Claude API, and delivers the result via email.
+Automated daily news digest that fetches articles from RSS feeds, summarizes them in Chinese using the Claude API, and delivers the result via Gmail.
 
 Runs daily on GitHub Actions at 08:00 PST / 09:00 PDT (UTC 16:00).
 
@@ -8,7 +8,7 @@ Runs daily on GitHub Actions at 08:00 PST / 09:00 PDT (UTC 16:00).
 
 1. Fetches articles published in the last 24 hours from RSS feeds across four categories
 2. Passes the raw articles to Claude, which selects the most newsworthy items and writes concise Chinese summaries
-3. Renders the markdown output as HTML and sends it via Resend
+3. Renders the markdown output as HTML and sends it via Gmail SMTP
 
 ## Categories and sources
 
@@ -25,7 +25,7 @@ Runs daily on GitHub Actions at 08:00 PST / 09:00 PDT (UTC 16:00).
 
 - [uv](https://docs.astral.sh/uv/)
 - An [Anthropic API key](https://console.anthropic.com/)
-- A [Resend API key](https://resend.com/api-keys)
+- A Gmail account with [App Password](https://myaccount.google.com/apppasswords) enabled (requires 2-Step Verification)
 
 ### Local development
 
@@ -36,9 +36,11 @@ cd daily-news-summary
 # Install dependencies
 uv sync
 
-# Configure environment
-cp .env .env.local  # or create .env manually
-# Set ANTHROPIC_API_KEY, RESEND_API_KEY, EMAIL_TO
+# Configure environment — create a .env file with:
+# ANTHROPIC_API_KEY=...
+# GMAIL_USER=your.address@gmail.com
+# GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx   (16-char App Password)
+# EMAIL_TO=recipient@example.com
 
 # Run
 uv run daily_news.py
@@ -48,20 +50,34 @@ uv run daily_news.py
 
 ```bash
 # Test RSS feed availability
-uv run test_rss.py
+uv run tests/test_rss.py
 
-# Test Claude output with real RSS data (no email sent)
-uv run test_claude.py
+# Test Claude output with real RSS data, saves generated/preview.html (no email sent)
+uv run tests/test_claude.py
+
+# Test Gmail email delivery using the last generated preview
+uv run tests/test_email.py
+
+# Full end-to-end integration test (RSS → Claude → email)
+uv run tests/test_integration.py
 ```
 
 ### GitHub Actions
 
 Add the following secrets to your repository under **Settings → Secrets and variables → Actions**:
 
+**Secrets** (Settings → Secrets and variables → Actions → Secrets):
+
 | Secret | Description |
 |---|---|
 | `ANTHROPIC_API_KEY` | Anthropic API key |
-| `RESEND_API_KEY` | Resend API key |
+| `GMAIL_APP_PASSWORD` | 16-character Gmail App Password |
+
+**Variables** (Settings → Secrets and variables → Actions → Variables):
+
+| Variable | Description |
+|---|---|
+| `GMAIL_USER` | Gmail address used to send |
 | `EMAIL_TO` | Recipient address(es), comma-separated |
 
 The workflow runs automatically on schedule and can also be triggered manually via `workflow_dispatch`.
@@ -71,16 +87,16 @@ The workflow runs automatically on schedule and can also be triggered manually v
 All configuration lives in `daily_news.py`:
 
 - **`RSS_SOURCES`** — add or remove feeds per category; the dict key becomes the section heading passed to Claude
+- **`CLAUDE_MODEL`** — switch between Haiku and Sonnet to balance cost vs. quality
 - **`hours` parameter** in `fetch_rss_articles()` — controls the lookback window (default: 24h)
 - **Prompt** in `generate_summary_with_claude()` — controls output format and article count per section
-- **`EMAIL_FROM`** — update to a verified custom domain if you have one configured in Resend
 
 ## Cost
 
 | Service | Cost |
 |---|---|
-| Claude API (Sonnet 4.5) | ~$0.05/run · ~$1.5/month |
-| Resend | Free up to 3,000 emails/month |
+| Claude Haiku 4.5 | ~$0.01/run · ~$0.30/month |
+| Gmail SMTP | Free |
 
 ## Stack
 
@@ -88,7 +104,7 @@ All configuration lives in `daily_news.py`:
 - [feedparser](https://feedparser.readthedocs.io/) — RSS parsing
 - [anthropic](https://github.com/anthropics/anthropic-sdk-python) — Claude API client
 - [markdown](https://python-markdown.github.io/) — markdown to HTML rendering
-- [resend](https://resend.com/docs/send-with-python) — email delivery
+- Gmail SMTP (`smtplib`) — email delivery (stdlib, no extra dependency)
 - GitHub Actions — scheduling and execution
 
 ## License

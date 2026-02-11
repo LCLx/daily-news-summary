@@ -23,6 +23,7 @@ jobs:
       - name: Generate and send summary
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          GMAIL_USER: ${{ vars.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          EMAIL_TO: ${{ vars.EMAIL_TO }}
         run: uv run daily_news.py
