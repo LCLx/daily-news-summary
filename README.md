@@ -14,10 +14,10 @@ Runs daily on GitHub Actions at 08:00 PST / 09:00 PDT (UTC 16:00).
 
 | Category | Sources |
 |---|---|
-| 国际政治 | The Guardian, BBC, NPR |
-| 经济与商业 | Financial Times, Reuters (via Google News), WSJ Markets |
-| 科技与AI | TechCrunch, The Verge, Ars Technica, Wired |
-| 健康与科学 | ScienceDaily, Nature, NPR Health |
+| World Politics | The Guardian, BBC, NPR |
+| Economy & Business | Financial Times, Reuters (via Google News), WSJ Markets |
+| Tech & AI | TechCrunch, The Verge, Ars Technica, Wired, Techmeme |
+| Health & Science | ScienceDaily, Nature, NPR Health |
 
 ## Setup
 

@@ -299,7 +299,7 @@ def build_email_html(body_markdown):
         height: auto !important;
         max-height: 450px !important;
         border-radius: 6px;
-        margin: 8px 0 14px;
+        margin: 10px auto 16px;
       }}
       a {{
         color: #3498db;

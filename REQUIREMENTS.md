@@ -1,26 +1,76 @@
-# News Summary — 需求文档
+# Requirements
 
-## Phase 1（已完成）
+## Phase 1 — Completed
 
-**目标：** 每日自动抓取新闻，用 Claude 总结成中文，通过邮件发送。
+**Goal:** Daily automated news digest — fetch RSS, summarize in Chinese via Claude, deliver by email.
 
-### 已实现功能
+### Implemented
 
-- **RSS 抓取**：4 个分类（国际政治、经济商业、科技 AI、健康科学），共 11 个来源
-- **过滤逻辑**：只抓最近 24 小时内的文章
-- **图片提取**：多策略提取文章配图（media_thumbnail / media_content / HTML img）
-- **Claude 摘要**：调用 Anthropic API，输出中文 markdown 格式摘要
-- **HTML 邮件**：渲染成格式化 HTML，通过 Resend 发送
-- **自动化调度**：GitHub Actions，每天 08:00 PST 运行
-- **测试**：RSS 可达性测试 + Claude pipeline 预览测试
-- **成本优化**：Haiku 模型，约 $0.014/次，$0.42/月
+- **RSS fetching:** 4 categories (World Politics, Economy & Business, Tech & AI, Health & Science), 11 sources total
+- **Time filtering:** articles from the last 24 hours only
+- **Image extraction:** multi-strategy (media_thumbnail → media_content → HTML img tag)
+- **Claude summarization:** Anthropic API, Chinese markdown output
+- **HTML email:** markdown rendered to styled HTML, delivered via Gmail SMTP
+- **Scheduled automation:** GitHub Actions, daily at 08:00 PST
+- **Tests:** RSS reachability check + Claude pipeline preview
+- **Cost optimization:** Haiku model, ~$0.014/run, ~$0.42/month
 
 ---
 
-## Phase 2（待定义）
+## Phase 2 — Planned
 
-> 在下方描述你的需求，越具体越好。
+**Goal:** Multi-user support — users log in with email OTP, customize RSS sources and prompt per account.
 
-### 需求列表
+### Implemented
 
-<!-- 在此添加 Phase 2 的功能需求 -->
+- **Email OTP login:** two-step flow (enter email → receive code → verify), handled by Supabase Auth
+- **Settings page:** users can edit RSS URLs per category and add custom prompt instructions
+- **Per-user email delivery:** GitHub Actions iterates over all active users, generates and sends a personalized digest for each
+- **Backward compatibility:** falls back to single-user mode when Supabase env vars are not set
+- **Deployment:** web app on Railway, GitHub Actions still handles daily scheduling
+
+### New stack
+
+- Supabase (PostgreSQL + Auth)
+- FastAPI + Jinja2 (settings web app)
+- Railway (web app hosting)
+
+### New files
+
+- [web/main.py](web/main.py) — FastAPI app (login + settings routes)
+- [web/templates/login.html](web/templates/login.html) — login page
+- [web/templates/settings.html](web/templates/settings.html) — settings page
+- [Procfile](Procfile) — Railway start command
+
+### Supabase schema
+
+```sql
+CREATE TABLE user_configs (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+  rss_sources jsonb NOT NULL DEFAULT '{}',
+  custom_prompt text,
+  is_active   boolean NOT NULL DEFAULT true,
+  created_at  timestamptz DEFAULT now(),
+  updated_at  timestamptz DEFAULT now()
+);
+ALTER TABLE user_configs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own config" ON user_configs
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+```
+
+### Environment variables
+
+| Variable | Used by | Purpose |
+|---|---|---|
+| `SUPABASE_URL` | Actions + Railway | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Actions only | Server-side key, bypasses RLS |
+| `SUPABASE_ANON_KEY` | Railway | Client-side key for web app |
+| `SECRET_KEY` | Railway | Signs session cookies |
+
+---
+
+## Phase 3 — To be defined
+
+<!-- Add Phase 3 requirements here -->
