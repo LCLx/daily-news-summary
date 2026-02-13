@@ -3,8 +3,8 @@
 ## What this is
 
 Two parallel pipelines fetching from the same RSS sources:
-- **Email pipeline** (`src/daily_news.py`): RSS → Claude API → HTML email via Gmail. Runs on GitHub Actions daily at 08:00 PST (UTC 16:00).
-- **Telegram pipeline** (`send_news.py`): RSS → Claude CLI (subscription, not API) → Telegram message.
+- **Email pipeline** (`src/email_pipeline.py`): RSS → Claude API → HTML email via Gmail. Runs on GitHub Actions daily at 08:00 PST (UTC 16:00).
+- **Telegram pipeline** (`src/telegram_pipeline.py`): RSS → Claude CLI (subscription, not API) → Telegram message.
 
 ## Stack
 
@@ -20,8 +20,8 @@ Two parallel pipelines fetching from the same RSS sources:
 
 ```
 src/
-  daily_news.py            # email pipeline (all logic lives here)
-send_news.py               # telegram pipeline (calls Claude CLI via subprocess)
+  email_pipeline.py        # email pipeline (all logic lives here)
+  telegram_pipeline.py     # telegram pipeline (calls Claude CLI via subprocess)
 docs/
   CONTEXT.md               # this file
   REQUIREMENTS.md          # phase planning and requirements
@@ -35,10 +35,10 @@ generated/                 # gitignored output directory
 pyproject.toml             # uv dependencies
 .env                       # local secrets (gitignored)
 .github/workflows/
-  daily_news.yml           # CI: astral-sh/setup-uv + uv sync + uv run src/daily_news.py
+  daily_news.yml           # CI: astral-sh/setup-uv + uv sync + uv run src/email_pipeline.py
 ```
 
-## Key functions in src/daily_news.py
+## Key functions in src/email_pipeline.py
 
 | Function | What it does |
 |---|---|
@@ -95,7 +95,7 @@ uv run tests/test_rss.py             # check feeds
 uv run tests/test_claude.py          # test Claude output + generate preview
 open generated/preview.html          # inspect email layout in browser
 uv run tests/test_email.py           # send preview via Gmail
-uv run src/daily_news.py             # full run including email
+uv run src/email_pipeline.py             # full run including email
 ```
 
 ## Cost (approximate)

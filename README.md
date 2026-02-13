@@ -49,10 +49,10 @@ uv sync
 # CLAUDE_MODEL=claude-haiku-4-5-20251001
 
 # Run email pipeline
-uv run src/daily_news.py
+uv run src/email_pipeline.py
 
 # Run Telegram pipeline
-uv run send_news.py
+uv run src/telegram_pipeline.py
 ```
 
 ### Testing
@@ -100,7 +100,7 @@ The workflow runs automatically on schedule and can also be triggered manually v
 
 ## Configuration
 
-All configuration lives in `daily_news.py`:
+All configuration lives in `email_pipeline.py`:
 
 - **`RSS_SOURCES`** — add or remove feeds per category; the dict key becomes the section heading passed to Claude
 - **`hours` parameter** in `fetch_rss_articles()` — controls the lookback window (default: 24h)

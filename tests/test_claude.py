@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
-from daily_news import RSS_SOURCES, fetch_rss_articles, generate_summary_with_claude, build_email_html
+from email_pipeline import RSS_SOURCES, fetch_rss_articles, generate_summary_with_claude, build_email_html
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'generated')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
