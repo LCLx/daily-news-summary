@@ -3,25 +3,24 @@
 ## What this is
 
 Two parallel pipelines fetching from the same RSS sources:
-- **Email pipeline** (`src/daily_news.py`): RSS → Claude API → HTML email via Gmail. Runs on GitHub Actions daily at 08:00 PST (UTC 16:00).
-- **Telegram pipeline** (`send_news.py`): RSS → Claude CLI (subscription, not API) → Telegram message.
+- **Email pipeline** (`src/email_pipeline.py`): RSS → Claude CLI → HTML email via Gmail. Runs via local cron job.
+- **Telegram pipeline** (`src/telegram_pipeline.py`): RSS → Claude CLI → Telegram message.
 
 ## Stack
 
 - Python 3.11, managed with **uv** (`uv sync`, `uv run`)
 - `feedparser` — RSS parsing
-- `anthropic` — Claude API (currently `claude-haiku-4-5-20251001`)
+- Claude CLI (subscription) — LLM summarization for both pipelines
 - `markdown` — markdown → HTML
 - `python-dotenv` — loads `.env` for local dev
 - Gmail SMTP (`smtplib`) — email delivery (stdlib, no extra dependency)
-- GitHub Actions — scheduling
 
 ## Project structure
 
 ```
 src/
-  daily_news.py            # email pipeline (all logic lives here)
-send_news.py               # telegram pipeline (calls Claude CLI via subprocess)
+  email_pipeline.py        # email pipeline (all logic lives here)
+  telegram_pipeline.py     # telegram pipeline (calls Claude CLI via subprocess)
 docs/
   CONTEXT.md               # this file
   REQUIREMENTS.md          # phase planning and requirements
@@ -34,11 +33,9 @@ generated/                 # gitignored output directory
   preview.html             # local HTML preview matching exact email output
 pyproject.toml             # uv dependencies
 .env                       # local secrets (gitignored)
-.github/workflows/
-  daily_news.yml           # CI: astral-sh/setup-uv + uv sync + uv run src/daily_news.py
 ```
 
-## Key functions in src/daily_news.py
+## Key functions in src/email_pipeline.py
 
 | Function | What it does |
 |---|---|
@@ -72,7 +69,6 @@ Note: Reuters official RSS is dead. Using Google News RSS proxy:
 
 ```
 # Email pipeline
-ANTHROPIC_API_KEY=
 GMAIL_USER=              # sender Gmail address
 GMAIL_APP_PASSWORD=      # 16-char Gmail App Password
 EMAIL_TO=                # comma-separated recipients
@@ -81,11 +77,9 @@ EMAIL_TO=                # comma-separated recipients
 OPENCLAW_CONFIG=         # absolute path to openclaw.json
 TELEGRAM_CHAT_ID=        # Telegram chat/channel ID
 
-# Shared
+# Shared (both pipelines)
 CLAUDE_MODEL=            # required, e.g. claude-haiku-4-5-20251001
 ```
-
-GitHub Actions (email pipeline): `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` as Secrets; `CLAUDE_MODEL` as Variable.
 
 ## Local dev workflow
 
@@ -95,14 +89,6 @@ uv run tests/test_rss.py             # check feeds
 uv run tests/test_claude.py          # test Claude output + generate preview
 open generated/preview.html          # inspect email layout in browser
 uv run tests/test_email.py           # send preview via Gmail
-uv run src/daily_news.py             # full run including email
+uv run src/email_pipeline.py             # full run including email
 ```
 
-## Cost (approximate)
-
-| Model | Per run | Per month (1×/day) |
-|---|---|---|
-| Haiku 4.5 | ~$0.014 | ~$0.42 |
-| Sonnet 4.5 | ~$0.053 | ~$1.60 |
-
-Current model: Haiku (user testing quality vs Sonnet).

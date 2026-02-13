@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
 Daily news summary: RSS → Claude → Telegram
-Run: python3 send_news.py
+Run: uv run src/telegram_pipeline.py
 """
 import re, json, os, sys, shutil, urllib.request, urllib.error
 from pathlib import Path
 from dotenv import load_dotenv
-load_dotenv(Path(__file__).parent / '.env')
-sys.path.insert(0, str(Path(__file__).parent / 'src'))
-from daily_news import fetch_rss_articles, RSS_SOURCES
+load_dotenv(Path(__file__).parent.parent / '.env')
+from email_pipeline import fetch_rss_articles, RSS_SOURCES
 
 OPENCLAW_CONFIG = os.environ['OPENCLAW_CONFIG']
 CLAUDE_MODEL = os.environ['CLAUDE_MODEL']

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test all RSS feeds defined in daily_news.py.
+Test all RSS feeds defined in email_pipeline.py.
 Checks reachability and reports article counts.
 """
 
@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import feedparser
 from datetime import datetime, timedelta, timezone
-from daily_news import RSS_SOURCES
+from email_pipeline import RSS_SOURCES
 
 HOURS = 24
 cutoff_time = datetime.now(timezone.utc) - timedelta(hours=HOURS)

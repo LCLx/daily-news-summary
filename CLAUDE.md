@@ -4,16 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-Two parallel pipelines, both fetching from the same RSS sources (`RSS_SOURCES` in `src/daily_news.py`):
-- **Email pipeline** (`src/daily_news.py`): RSS → Claude API → HTML email via Gmail SMTP. Runs on GitHub Actions daily at 08:00 PST (UTC 16:00).
-- **Telegram pipeline** (`send_news.py`): RSS → Claude CLI (subscription, not API) → Telegram message.
+Two parallel pipelines, both fetching from the same RSS sources (`RSS_SOURCES` in `src/email_pipeline.py`):
+- **Email pipeline** (`src/email_pipeline.py`): RSS → Claude CLI → HTML email via Gmail SMTP. Runs via local cron job.
+- **Telegram pipeline** (`src/telegram_pipeline.py`): RSS → Claude CLI → Telegram message.
 
 ## Commands
 
 ```bash
 uv sync                              # install dependencies
-uv run src/daily_news.py             # email pipeline: fetch → summarize → email
-uv run send_news.py                  # telegram pipeline: fetch → summarize → telegram
+uv run src/email_pipeline.py             # email pipeline: fetch → summarize → email
+uv run src/telegram_pipeline.py                  # telegram pipeline: fetch → summarize → telegram
 uv run tests/test_rss.py             # check RSS feed reachability + article counts
 uv run tests/test_claude.py          # Claude pipeline test, saves generated/preview.html (no email)
 uv run tests/test_email.py           # send last generated preview via Gmail (run test_claude.py first)
@@ -24,9 +24,9 @@ Tests are standalone scripts (not pytest). Each is run directly with `uv run`. T
 
 ## Architecture
 
-**Single-file pipeline** (`src/daily_news.py`):
+**Single-file pipeline** (`src/email_pipeline.py`):
 1. `fetch_rss_articles()` — fetches RSS, filters to last 24h (UTC), extracts images via `extract_image_url()`
-2. `generate_summary_with_claude()` — builds a Chinese-language prompt with all articles, calls Claude API
+2. `generate_summary_with_claude()` — builds a Chinese-language prompt with all articles, calls Claude CLI
 3. `build_email_html()` — renders Claude's markdown output to a styled HTML email
 4. `send_email_gmail()` — delivers via Gmail SMTP with App Password
 5. `main()` — orchestrates the pipeline
@@ -38,9 +38,9 @@ Image extraction tries multiple strategies in order: `media_thumbnail` → `medi
 ## Environment variables
 
 Required in `.env` for local dev (loaded via `python-dotenv`):
-- `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` — email pipeline
-- `OPENCLAW_CONFIG`, `CLAUDE_MODEL`, `TELEGRAM_CHAT_ID` — telegram pipeline
-- `CLAUDE_MODEL` is shared by both pipelines
+- `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` — email pipeline
+- `OPENCLAW_CONFIG`, `TELEGRAM_CHAT_ID` — telegram pipeline
+- `CLAUDE_MODEL` — shared by both pipelines
 
 ## Conventions
 

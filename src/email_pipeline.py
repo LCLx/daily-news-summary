@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 """
 Daily news digest generator
-Uses RSS + Claude API + Resend email
+Uses RSS + Claude CLI + Gmail email
 """
 
 import os
 import re
+import shutil
 import socket
+import subprocess
+import sys
 import feedparser
 import markdown as md
 from dotenv import load_dotenv
 
 load_dotenv()
 from datetime import datetime, timedelta, timezone
-from anthropic import Anthropic
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -51,9 +53,8 @@ RSS_SOURCES = {
     ],
 }
 
-# Claude API configuration
-ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
-CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL', 'claude-haiku-4-5-20251001')
+# Claude CLI configuration
+CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL', '')
 
 # Gmail SMTP configuration
 GMAIL_USER = os.environ.get('GMAIL_USER')        # your.address@gmail.com
@@ -132,8 +133,10 @@ def fetch_rss_articles(category, feeds, hours=24):
     for feed_url in feeds:
         try:
             socket.setdefaulttimeout(15)
-            feed = feedparser.parse(feed_url, agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-            socket.setdefaulttimeout(None)
+            try:
+                feed = feedparser.parse(feed_url, agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+            finally:
+                socket.setdefaulttimeout(None)
 
             feed_article_count = 0
             for entry in feed.entries:
@@ -162,7 +165,6 @@ def fetch_rss_articles(category, feeds, hours=24):
                     })
         except Exception as e:
             print(f"⚠️ Failed to fetch {feed_url}: {e}")
-            continue
 
     # Sort by datetime object (newest first)
     articles.sort(key=lambda x: x['pub_date'], reverse=True)
@@ -179,9 +181,6 @@ def generate_summary_with_claude(all_articles):
     Returns:
         str: Generated Chinese digest in markdown
     """
-    if not ANTHROPIC_API_KEY:
-        raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
-
     # Build the content block sent to Claude
     articles_by_category = []
     for category, articles in all_articles.items():
@@ -204,64 +203,54 @@ def generate_summary_with_claude(all_articles):
     full_content = "\n".join(articles_by_category)
 
     # Claude prompt
-    prompt = f"""以下是今日各板块的英文新闻（已按板块分类）：
+    prompt = f"""你是新闻编辑。直接输出今日中文新闻摘要，不要有任何开场白、说明或结束语，第一行就是 ## 开头的板块标题。
 
-{full_content}
+从以下英文新闻中，每个板块选5条最重要的，按此格式逐条输出：
 
-请按以下要求生成中文新闻摘要：
-
-**输出要求：**
-1. 分为5个板块：科技与AI、国际政治、经济与商业、太平洋西北地区、健康与科学
-2. 每个板块选出最重要的5条新闻
-3. 每条新闻包含：
-   - 中文标题
-   - 100-150字中文摘要
-   - 原文链接（保持原样）
-   - 来源媒体名称
-
-**格式示例：**
 ## 💻 科技与AI
 
-### 1. [中文标题]
-![](图片URL)
-[中文摘要，100-150字]
+### 1. 中文标题
+![](图片URL，仅当原文有"图片"字段时才写这行，否则删除此行)
+100-150字中文摘要。
 
 🔗 原文: [原始英文标题](链接)
 📰 来源: 媒体名称 | 发布时间
 
 ---
 
-### 2. [中文标题]
-...
+## 🌍 国际政治
+（同上格式）
 
-**重要：**
-- 不要使用任何citation标签（如<cite>）
-- 链接使用标准markdown格式
-- 选择最有新闻价值和影响力的内容
-- 摘要要准确、客观、简洁
-- 直接输出内容，不要有任何开场白或结束语
-- 如果文章提供了"图片"字段，在中文标题下一行插入 ![](图片URL)；没有"图片"字段则**绝对不能**插入任何图片，不要自行补充或猜测图片URL
+## 💰 经济与商业
+（同上格式）
 
-**选稿标准：**
-- 优先选影响全球格局的重大事件，避免软新闻和娱乐性内容
-- 同一事件只选一条，选报道最完整的
-- 科技板块优先选 AI 相关新闻
-"""
+## 🌲 太平洋西北地区
+（同上格式）
 
-    client = Anthropic(api_key=ANTHROPIC_API_KEY)
+## 🔬 健康与科学
+（同上格式）
 
-    print("Calling Claude API to generate digest...")
+选稿标准：优先重大事件，同一事件只选最完整的一条，科技板块优先 AI 相关，避免软新闻。
+链接用标准 markdown 格式，不要用 <cite> 标签。
 
-    message = client.messages.create(
-        model=CLAUDE_MODEL,
-        max_tokens=10000,
-        messages=[{
-            "role": "user",
-            "content": prompt
-        }]
-    )
+以下是今日英文新闻：
 
-    return message.content[0].text
+{full_content}"""
+
+    claude_bin = shutil.which('claude') or 'claude'
+    print("Calling Claude CLI to generate digest...")
+    try:
+        result = subprocess.run(
+            [claude_bin, '--model', CLAUDE_MODEL, '--print', prompt],
+            capture_output=True, text=True, stdin=subprocess.DEVNULL,
+            timeout=180,
+        )
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("Claude CLI timed out after 180 seconds")
+    if result.returncode != 0 or not result.stdout.strip():
+        raise RuntimeError(f"Claude CLI error (exit {result.returncode}): {result.stderr.strip()}")
+
+    return result.stdout.strip()
 
 
 def build_email_html(body_markdown):
@@ -345,7 +334,7 @@ def build_email_html(body_markdown):
     {body_html}
     <div class="footer">
       由 Claude AI 自动生成<br/>
-      <small>Powered by RSS + Claude API</small>
+      <small>Powered by RSS + Claude CLI</small>
     </div>
   </body>
 </html>"""
@@ -372,14 +361,11 @@ def send_email_gmail(subject, body_markdown, recipients):
     msg['To'] = ', '.join(recipients)
     msg.attach(MIMEText(html, 'html'))
 
-    try:
-        print(f"Sending email via Gmail to {', '.join(recipients)}...")
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-            server.sendmail(GMAIL_USER, recipients, msg.as_string())
-        print("✅ Email sent.")
-    except Exception as e:
-        print(f"❌ Failed to send email: {e}")
+    print(f"Sending email via Gmail to {', '.join(recipients)}...")
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+        server.sendmail(GMAIL_USER, recipients, msg.as_string())
+    print("✅ Email sent.")
 
 
 def main():
@@ -388,6 +374,13 @@ def main():
     print("📰 Daily News Digest")
     print("=" * 60)
     print()
+
+    # Validate required env vars before doing any work
+    missing = [var for var in ('CLAUDE_MODEL', 'GMAIL_USER', 'GMAIL_APP_PASSWORD', 'EMAIL_TO')
+               if not os.environ.get(var)]
+    if missing:
+        print(f"❌ Missing required environment variables: {', '.join(missing)}")
+        sys.exit(1)
 
     # 1. Fetch all RSS articles
     print("📥 Fetching RSS articles...")
@@ -407,7 +400,11 @@ def main():
         return
 
     # 2. Generate digest via Claude
-    summary = generate_summary_with_claude(all_articles)
+    try:
+        summary = generate_summary_with_claude(all_articles)
+    except RuntimeError as e:
+        print(f"❌ {e}")
+        sys.exit(1)
 
     # 3. Print to console
     print("\n" + "=" * 60)
@@ -417,12 +414,13 @@ def main():
     print("=" * 60)
 
     # 4. Send email
-    if EMAIL_TO:
-        recipients = [email.strip() for email in EMAIL_TO.split(',')]
-        subject = f"📰 每日新闻摘要 - {datetime.now().strftime('%Y年%m月%d日')}"
+    recipients = [email.strip() for email in EMAIL_TO.split(',')]
+    subject = f"📰 每日新闻摘要 - {datetime.now().strftime('%Y年%m月%d日')}"
+    try:
         send_email_gmail(subject, summary, recipients)
-    else:
-        print("\n⚠️ EMAIL_TO not set, skipping email")
+    except Exception as e:
+        print(f"❌ Failed to send email: {e}")
+        sys.exit(1)
 
     print("\n✅ Done!")
 
