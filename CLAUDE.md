@@ -4,13 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-Daily news digest pipeline: RSS feeds → Claude API summarization (in Chinese) → HTML email via Gmail SMTP. Runs on GitHub Actions daily at 08:00 PST (UTC 16:00). All logic lives in a single file: `src/daily_news.py`.
+Two parallel pipelines, both fetching from the same RSS sources (`RSS_SOURCES` in `src/daily_news.py`):
+- **Email pipeline** (`src/daily_news.py`): RSS → Claude API → HTML email via Gmail SMTP. Runs on GitHub Actions daily at 08:00 PST (UTC 16:00).
+- **Telegram pipeline** (`send_news.py`): RSS → Claude CLI (subscription, not API) → Telegram message.
 
 ## Commands
 
 ```bash
 uv sync                              # install dependencies
-uv run src/daily_news.py             # full run (fetch → summarize → email)
+uv run src/daily_news.py             # email pipeline: fetch → summarize → email
+uv run send_news.py                  # telegram pipeline: fetch → summarize → telegram
 uv run tests/test_rss.py             # check RSS feed reachability + article counts
 uv run tests/test_claude.py          # Claude pipeline test, saves generated/preview.html (no email)
 uv run tests/test_email.py           # send last generated preview via Gmail (run test_claude.py first)
@@ -35,8 +38,9 @@ Image extraction tries multiple strategies in order: `media_thumbnail` → `medi
 ## Environment variables
 
 Required in `.env` for local dev (loaded via `python-dotenv`):
-- `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO`
-- `CLAUDE_MODEL` — optional, defaults to `claude-haiku-4-5-20251001`
+- `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` — email pipeline
+- `OPENCLAW_CONFIG`, `CLAUDE_MODEL`, `TELEGRAM_CHAT_ID` — telegram pipeline
+- `CLAUDE_MODEL` is shared by both pipelines
 
 ## Conventions
 

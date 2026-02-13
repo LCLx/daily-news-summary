@@ -2,8 +2,9 @@
 
 ## What this is
 
-Daily news digest: fetches RSS → Claude summarizes in Chinese → Gmail delivers HTML email.
-Runs on GitHub Actions daily at 08:00 PST (UTC 16:00).
+Two parallel pipelines fetching from the same RSS sources:
+- **Email pipeline** (`src/daily_news.py`): RSS → Claude API → HTML email via Gmail. Runs on GitHub Actions daily at 08:00 PST (UTC 16:00).
+- **Telegram pipeline** (`send_news.py`): RSS → Claude CLI (subscription, not API) → Telegram message.
 
 ## Stack
 
@@ -19,7 +20,8 @@ Runs on GitHub Actions daily at 08:00 PST (UTC 16:00).
 
 ```
 src/
-  daily_news.py            # main script (all logic lives here)
+  daily_news.py            # email pipeline (all logic lives here)
+send_news.py               # telegram pipeline (calls Claude CLI via subprocess)
 docs/
   CONTEXT.md               # this file
   REQUIREMENTS.md          # phase planning and requirements
@@ -69,15 +71,21 @@ Note: Reuters official RSS is dead. Using Google News RSS proxy:
 ## Env vars
 
 ```
+# Email pipeline
 ANTHROPIC_API_KEY=
 GMAIL_USER=              # sender Gmail address
 GMAIL_APP_PASSWORD=      # 16-char Gmail App Password
 EMAIL_TO=                # comma-separated recipients
-CLAUDE_MODEL=            # optional, defaults to claude-haiku-4-5-20251001
+
+# Telegram pipeline
+OPENCLAW_CONFIG=         # absolute path to openclaw.json
+TELEGRAM_CHAT_ID=        # Telegram chat/channel ID
+
+# Shared
+CLAUDE_MODEL=            # required, e.g. claude-haiku-4-5-20251001
 ```
 
-GitHub Actions: `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` as Secrets;
-`CLAUDE_MODEL` as Variable.
+GitHub Actions (email pipeline): `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` as Secrets; `CLAUDE_MODEL` as Variable.
 
 ## Local dev workflow
 

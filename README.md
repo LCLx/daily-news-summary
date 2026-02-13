@@ -1,14 +1,11 @@
 # daily-news-summary
 
-Automated daily news digest that fetches articles from RSS feeds, summarizes them in Chinese using the Claude API, and delivers the result via Gmail.
+Two parallel pipelines that fetch from the same RSS feeds and deliver Chinese summaries via different channels:
 
-Runs daily on GitHub Actions at 08:00 PST / 09:00 PDT (UTC 16:00).
+- **Email pipeline** — Claude API → HTML email via Gmail SMTP. Runs daily on GitHub Actions at 08:00 PST (UTC 16:00).
+- **Telegram pipeline** — Claude CLI (subscription) → Telegram message. Run manually or on schedule.
 
-## How it works
-
-1. Fetches articles published in the last 24 hours from RSS feeds across five categories
-2. Passes the raw articles to Claude, which selects the most newsworthy items and writes concise Chinese summaries
-3. Renders the markdown output as HTML and sends it via Gmail SMTP
+Both pipelines fetch articles published in the last 24 hours, select the most newsworthy items, and write concise Chinese summaries.
 
 ## Categories and sources
 
@@ -25,8 +22,8 @@ Runs daily on GitHub Actions at 08:00 PST / 09:00 PDT (UTC 16:00).
 ### Prerequisites
 
 - [uv](https://docs.astral.sh/uv/)
-- An [Anthropic API key](https://console.anthropic.com/)
-- A Gmail account with [App Password](https://myaccount.google.com/apppasswords) enabled (requires 2-Step Verification)
+- **Email pipeline:** An [Anthropic API key](https://console.anthropic.com/) + Gmail account with [App Password](https://myaccount.google.com/apppasswords) enabled
+- **Telegram pipeline:** [Claude CLI](https://claude.ai/code) logged in with a Claude subscription + a Telegram bot token
 
 ### Local development
 
@@ -37,14 +34,25 @@ cd daily-news-summary
 # Install dependencies
 uv sync
 
-# Configure environment — create a .env file with:
+# Configure environment — create a .env file:
+# Email pipeline:
 # ANTHROPIC_API_KEY=...
 # GMAIL_USER=your.address@gmail.com
 # GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx   (16-char App Password)
 # EMAIL_TO=recipient@example.com
+#
+# Telegram pipeline:
+# OPENCLAW_CONFIG=/path/to/.openclaw/openclaw.json
+# TELEGRAM_CHAT_ID=your_chat_id
+#
+# Shared:
+# CLAUDE_MODEL=claude-haiku-4-5-20251001
 
-# Run
+# Run email pipeline
 uv run src/daily_news.py
+
+# Run Telegram pipeline
+uv run send_news.py
 ```
 
 ### Testing
