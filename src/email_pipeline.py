@@ -6,7 +6,9 @@ Uses RSS + Claude API + Resend email
 
 import os
 import re
+import shutil
 import socket
+import subprocess
 import feedparser
 import markdown as md
 from dotenv import load_dotenv
@@ -49,6 +51,10 @@ RSS_SOURCES = {
         'https://www.nature.com/nature.rss',
         'https://feeds.npr.org/1007/rss.xml',  # NPR Health
     ],
+    'Deals': [
+        'https://slickdeals.net/newsearch.php?mode=frontpage&searcharea=deals&searchin=first&rss=1',
+        'https://www.reddit.com/r/deals.rss',
+    ],
 }
 
 # Claude API configuration
@@ -82,17 +88,17 @@ def extract_image_url(entry):
             return False
         return True
 
-    # 1. media:thumbnail (BBC, Ars Technica)
-    thumbnails = getattr(entry, 'media_thumbnail', None)
-    if thumbnails:
-        url = thumbnails[0].get('url')
-        if is_valid_image_url(url):
-            return url
-
-    # 2. media:content (Guardian, Ars Technica) — last item tends to be largest
+    # 1. media:content (Guardian, Ars Technica) — last item tends to be largest
     media = getattr(entry, 'media_content', None)
     if media:
         url = media[-1].get('url', '')
+        if is_valid_image_url(url):
+            return url
+
+    # 2. media:thumbnail (BBC, Ars Technica) — fallback, lower resolution
+    thumbnails = getattr(entry, 'media_thumbnail', None)
+    if thumbnails:
+        url = thumbnails[0].get('url')
         if is_valid_image_url(url):
             return url
 
@@ -113,7 +119,7 @@ def extract_image_url(entry):
     return None
 
 
-def fetch_rss_articles(category, feeds, hours=24):
+def fetch_rss_articles(category, feeds, hours=24, max_per_feed=4):
     """
     Fetch recent articles from the given RSS feeds.
 
@@ -137,7 +143,7 @@ def fetch_rss_articles(category, feeds, hours=24):
 
             feed_article_count = 0
             for entry in feed.entries:
-                if feed_article_count >= 4:  # Max 4 articles per feed
+                if feed_article_count >= max_per_feed:
                     break
                 # Parse publish time
                 if hasattr(entry, 'published_parsed'):
@@ -171,7 +177,12 @@ def fetch_rss_articles(category, feeds, hours=24):
 
 def generate_summary_with_claude(all_articles):
     """
-    Generate a Chinese digest using the Claude API.
+    Generate a Chinese digest via Claude API or CLI.
+
+    Backend selection (checked in order):
+      1. CLAUDE_BACKEND=cli  → Claude CLI subprocess (local dev / subscription)
+      2. ANTHROPIC_API_KEY set → Anthropic API (GitHub Actions / CI)
+      3. Neither set          → raises ValueError
 
     Args:
         all_articles: dict of articles grouped by category
@@ -179,8 +190,9 @@ def generate_summary_with_claude(all_articles):
     Returns:
         str: Generated Chinese digest in markdown
     """
-    if not ANTHROPIC_API_KEY:
-        raise ValueError("ANTHROPIC_API_KEY environment variable is not set")
+    use_cli = os.environ.get('CLAUDE_BACKEND', '').lower() == 'cli'
+    if not use_cli and not ANTHROPIC_API_KEY:
+        raise ValueError("Set ANTHROPIC_API_KEY (API) or CLAUDE_BACKEND=cli (CLI)")
 
     # Build the content block sent to Claude
     articles_by_category = []
@@ -211,15 +223,16 @@ def generate_summary_with_claude(all_articles):
 请按以下要求生成中文新闻摘要：
 
 **输出要求：**
-1. 分为5个板块：科技与AI、国际政治、经济与商业、太平洋西北地区、健康与科学
-2. 每个板块选出最重要的5条新闻
-3. 每条新闻包含：
+1. 分为6个板块：科技与AI、国际政治、经济与商业、太平洋西北地区、健康与科学、今日优惠
+2. 前5个板块各选最重要的5条新闻
+3. 「今日优惠」板块从 Deals 类别选出最多10条最值得买的优惠
+4. 每条新闻包含：
    - 中文标题
    - 100-150字中文摘要
    - 原文链接（保持原样）
    - 来源媒体名称
 
-**格式示例：**
+**格式示例（新闻板块）：**
 ## 💻 科技与AI
 
 ### 1. [中文标题]
@@ -231,8 +244,26 @@ def generate_summary_with_claude(all_articles):
 
 ---
 
-### 2. [中文标题]
+**格式示例（今日优惠板块）：**
+## 🛍️ 今日优惠
+
+### 1. [中文商品名]
+**$XX.XX**（原价 $XX，省 XX%）｜ 📍 Amazon / Walmart / ...
+一句话介绍这是什么商品。
+🔗 [查看优惠](链接)
+
+---
+
+### 2. [中文商品名]
 ...
+
+**今日优惠选品规则：**
+- **排除** Renewed / Refurbished / Like-New / Open Box 等二手翻新产品
+- 电子产品/电脑/配件类合计**不超过6条**，其余名额优先分配给家居、工具、游戏、户外装备、背包箱包等
+- 若去掉消耗品后不足10条，可用食品/饮料/日用消耗品补足，但消耗品排在后面
+- 折扣力度优先（30%+ 以上优先考虑）
+- 如原文有价格信息，必须在摘要中写明价格和折扣幅度
+- 商品名中的品牌名保留英文原名，不要翻译（如 Logitech、KEF、Garmin、Nintendo 等）
 
 **重要：**
 - 不要使用任何citation标签（如<cite>）
@@ -242,26 +273,32 @@ def generate_summary_with_claude(all_articles):
 - 直接输出内容，不要有任何开场白或结束语
 - 如果文章提供了"图片"字段，在中文标题下一行插入 ![](图片URL)；没有"图片"字段则**绝对不能**插入任何图片，不要自行补充或猜测图片URL
 
-**选稿标准：**
+**选稿标准（新闻）：**
 - 优先选影响全球格局的重大事件，避免软新闻和娱乐性内容
 - 同一事件只选一条，选报道最完整的
 - 科技板块优先选 AI 相关新闻
 """
 
-    client = Anthropic(api_key=ANTHROPIC_API_KEY)
-
-    print("Calling Claude API to generate digest...")
-
-    message = client.messages.create(
-        model=CLAUDE_MODEL,
-        max_tokens=10000,
-        messages=[{
-            "role": "user",
-            "content": prompt
-        }]
-    )
-
-    return message.content[0].text
+    if use_cli:
+        print("Calling Claude CLI to generate digest...")
+        claude_bin = shutil.which('claude') or 'claude'
+        env = {k: v for k, v in os.environ.items() if k != 'CLAUDECODE'}
+        result = subprocess.run(
+            [claude_bin, '--model', CLAUDE_MODEL, '--print', prompt],
+            capture_output=True, text=True, stdin=subprocess.DEVNULL, env=env
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            raise RuntimeError(f"Claude CLI failed (exit {result.returncode}): {result.stderr.strip()}")
+        return result.stdout.strip()
+    else:
+        print("Calling Claude API to generate digest...")
+        client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        message = client.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=10000,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return message.content[0].text
 
 
 def build_email_html(body_markdown):
@@ -395,7 +432,8 @@ def main():
 
     for category, feeds in RSS_SOURCES.items():
         print(f"  - {category}...")
-        articles = fetch_rss_articles(category, feeds)
+        kwargs = {'max_per_feed': 15} if category == 'Deals' else {}
+        articles = fetch_rss_articles(category, feeds, **kwargs)
         all_articles[category] = articles
         print(f"    {len(articles)} recent articles")
 

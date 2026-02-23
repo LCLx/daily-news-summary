@@ -19,7 +19,8 @@ if __name__ == '__main__':
     print("📥 Fetching real RSS articles...\n")
     all_articles = {}
     for category, feeds in RSS_SOURCES.items():
-        articles = fetch_rss_articles(category, feeds)
+        kwargs = {'max_per_feed': 15} if category == 'Deals' else {}
+        articles = fetch_rss_articles(category, feeds, **kwargs)
         all_articles[category] = articles
         print(f"  {category}: {len(articles)} articles")
 
@@ -30,7 +31,7 @@ if __name__ == '__main__':
         print("No articles found, exiting.")
         exit(1)
 
-    print("Calling Claude API...\n" + "=" * 60 + "\n")
+    print("Invoking Claude...\n" + "=" * 60 + "\n")
     result = generate_summary_with_claude(all_articles)
     print(result)
 
