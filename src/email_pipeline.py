@@ -248,6 +248,7 @@ def generate_summary_with_claude(all_articles):
 ## 🛍️ 今日优惠
 
 ### 1. [中文商品名]
+![](图片URL)
 **$XX.XX**（原价 $XX，省 XX%）｜ 📍 Amazon / Walmart / ...
 一句话介绍这是什么商品。
 🔗 [查看优惠](链接)
@@ -259,6 +260,7 @@ def generate_summary_with_claude(all_articles):
 
 **今日优惠选品规则：**
 - **排除** Renewed / Refurbished / Like-New / Open Box 等二手翻新产品
+- **排除** 母婴产品（婴儿服装/睡衣/玩具、幼儿用品、孕产品等）
 - 电子产品/电脑/配件类合计**不超过6条**，其余名额优先分配给家居、工具、游戏、户外装备、背包箱包等
 - 若去掉消耗品后不足10条，可用食品/饮料/日用消耗品补足，但消耗品排在后面
 - 折扣力度优先（30%+ 以上优先考虑）
@@ -271,7 +273,7 @@ def generate_summary_with_claude(all_articles):
 - 选择最有新闻价值和影响力的内容
 - 摘要要准确、客观、简洁
 - 直接输出内容，不要有任何开场白或结束语
-- 如果文章提供了"图片"字段，在中文标题下一行插入 ![](图片URL)；没有"图片"字段则**绝对不能**插入任何图片，不要自行补充或猜测图片URL
+- 新闻和优惠都适用：如果文章提供了"图片"字段，**必须**在中文标题下一行插入 ![](图片URL)；没有"图片"字段则**绝对不能**插入任何图片，不要自行补充或猜测图片URL
 
 **选稿标准（新闻）：**
 - 优先选影响全球格局的重大事件，避免软新闻和娱乐性内容
@@ -312,8 +314,17 @@ def build_email_html(body_markdown):
         str: Full HTML document string
     """
     body_html = md.markdown(body_markdown, extensions=['extra'])
+    # Wrap the deals section so .deals-section img CSS applies to all deal images
+    # regardless of CDN source (SlickDeals, Reddit, etc.)
+    body_html = re.sub(
+        r'(<h2[^>]*>🛍️\s*今日优惠</h2>)',
+        r'<div class="deals-section">\1',
+        body_html
+    )
+    if 'class="deals-section"' in body_html:
+        body_html += '</div>'
     # Hide broken images (hotlink-blocked or expired URLs) instead of showing broken icon
-    body_html = body_html.replace('<img ', '<img onerror="this.style.display=\'none\'" ')
+    body_html = body_html.replace('<img ', '<img onerror="this.remove()" ')
 
     return f"""<!DOCTYPE html>
 <html>
@@ -361,9 +372,28 @@ def build_email_html(body_markdown):
         border: none;
         border-top: 1px solid #eee;
         margin: 25px 0;
+        clear: both;
       }}
       p {{
         margin: 15px 0;
+      }}
+      .deals-section p {{
+        white-space: pre-line;
+      }}
+      .deals-section p strong {{
+        font-size: 1.15em;
+      }}
+      .deals-section img {{
+        width: 110px !important;
+        height: 110px !important;
+        max-width: 110px !important;
+        max-height: 110px !important;
+        object-fit: contain !important;
+        float: left !important;
+        margin: 0 14px 6px 0 !important;
+        border-radius: 4px !important;
+        border: 1px solid #eee !important;
+        background: #f9f9f9 !important;
       }}
       .footer {{
         margin-top: 40px;
