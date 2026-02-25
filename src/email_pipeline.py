@@ -540,7 +540,7 @@ def send_email_gmail(subject, body_html, recipients):
     msg = MIMEMultipart('alternative')
     msg['Subject'] = subject
     msg['From'] = GMAIL_USER
-    msg['To'] = ', '.join(recipients)
+    msg['To'] = 'undisclosed-recipients:;'
     msg.attach(MIMEText(body_html, 'html'))
 
     try:
