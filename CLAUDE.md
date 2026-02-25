@@ -41,6 +41,8 @@ Required in `.env` for local dev (loaded via `python-dotenv`):
 - `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` — email pipeline
 - `OPENCLAW_CONFIG`, `CLAUDE_MODEL`, `TELEGRAM_CHAT_ID` — telegram pipeline
 - `CLAUDE_MODEL` is shared by both pipelines
+- `CLAUDE_BACKEND=cli` — use Claude CLI subprocess instead of API (for local dev with subscription)
+- `MODE=TEST` — optional; limits test scripts to 1 article per category (faster, fewer tokens)
 
 ## Conventions
 

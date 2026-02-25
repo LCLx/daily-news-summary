@@ -323,8 +323,27 @@ def build_email_html(body_markdown):
     )
     if 'class="deals-section"' in body_html:
         body_html += '</div>'
-    # Hide broken images (hotlink-blocked or expired URLs) instead of showing broken icon
-    body_html = body_html.replace('<img ', '<img onerror="this.remove()" ')
+    # Inline styles for email client compatibility (many mobile clients strip <style> tags)
+    deals_img_style = (
+        'style="width:110px !important;height:110px !important;'
+        'max-width:110px !important;max-height:110px !important;'
+        'object-fit:contain !important;float:left !important;'
+        'margin:0 14px 6px 0 !important;border-radius:4px !important;'
+        'border:1px solid #eee !important;background:#f9f9f9 !important;" '
+    )
+    if 'class="deals-section"' in body_html:
+        parts = body_html.split('<div class="deals-section">', 1)
+        deals_part = parts[1].replace('<img ', f'<img {deals_img_style}')
+        body_html = parts[0] + '<div class="deals-section">' + deals_part
+    # Add centering inline styles to article images (those without style= already).
+    # Use max-width (not width:100%) to avoid stretching in Gmail.
+    article_img_style = (
+        'style="display:block;max-width:100%;height:auto;'
+        'margin:10px auto 16px;border-radius:6px;" '
+    )
+    body_html = re.sub(r'<img (?!style=)', f'<img onerror="this.remove()" {article_img_style}', body_html)
+    # Add onerror to deals images too (which already have style=)
+    body_html = body_html.replace('<img style=', '<img onerror="this.remove()" style=')
 
     return f"""<!DOCTYPE html>
 <html>

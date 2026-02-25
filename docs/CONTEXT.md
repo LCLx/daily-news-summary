@@ -83,6 +83,10 @@ TELEGRAM_CHAT_ID=        # Telegram chat/channel ID
 
 # Shared
 CLAUDE_MODEL=            # required, e.g. claude-haiku-4-5-20251001
+CLAUDE_BACKEND=cli       # optional; use Claude CLI subprocess instead of API
+
+# Local dev / testing
+MODE=TEST         # optional; limits test scripts to 1 article per category (faster, fewer tokens)
 ```
 
 GitHub Actions (email pipeline): `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` as Secrets; `CLAUDE_MODEL` as Variable.

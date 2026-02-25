@@ -25,18 +25,28 @@ from datetime import datetime
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'generated')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+SIMPLE_MODE = os.environ.get('MODE', '').upper() == 'TEST'
+
 def run():
     print("=" * 60)
-    print("🔁 Integration Test — Full Pipeline")
+    if SIMPLE_MODE:
+        print("🔁 Integration Test — Full Pipeline (TEST mode: 1 feed/category)")
+    else:
+        print("🔁 Integration Test — Full Pipeline")
     print("=" * 60)
 
     # Step 1: Fetch RSS
     print("\n[1/3] Fetching RSS articles...")
     all_articles = {}
     for category, feeds in RSS_SOURCES.items():
-        articles = fetch_rss_articles(category, feeds)
+        kwargs = {'max_per_feed': 15} if category == 'Deals' else {}
+        articles = fetch_rss_articles(category, feeds, **kwargs)
         all_articles[category] = articles
         print(f"  {category}: {len(articles)} articles")
+
+    # In TEST mode, limit to 1 article per category to minimize tokens
+    if SIMPLE_MODE:
+        all_articles = {k: v[:1] for k, v in all_articles.items()}
 
     total = sum(len(a) for a in all_articles.values())
     print(f"  Total: {total} articles")
