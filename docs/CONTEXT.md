@@ -11,8 +11,8 @@ Two parallel pipelines fetching from the same RSS sources:
 - Python 3.11, managed with **uv** (`uv sync`, `uv run`)
 - `feedparser` — RSS parsing
 - `anthropic` — Claude API (currently `claude-haiku-4-5-20251001`)
-- `markdown` — markdown → HTML
 - `python-dotenv` — loads `.env` for local dev
+- stdlib `json` + `html` — parse Claude's JSON output and render XSS-safe HTML (no `markdown` dependency)
 - Gmail SMTP (`smtplib`) — email delivery (stdlib, no extra dependency)
 - GitHub Actions — scheduling
 
@@ -44,9 +44,10 @@ pyproject.toml             # uv dependencies
 |---|---|
 | `extract_image_url(entry)` | Tries media_thumbnail → media_content → HTML img parse; returns None if none found |
 | `fetch_rss_articles(category, feeds, hours=24)` | Fetches RSS, filters to last 24h (UTC), stores image_url per article |
-| `generate_summary_with_claude(all_articles)` | Builds prompt, calls Claude, returns markdown |
-| `build_email_html(body_markdown)` | Renders markdown to full HTML email via `markdown` lib |
-| `send_email_gmail(subject, body_markdown, recipients)` | Sends via Gmail SMTP with App Password |
+| `generate_summary_with_claude(all_articles)` | Builds prompt, calls Claude, returns structured JSON with article refs (e.g. `"Tech & AI:3"`) to minimize output tokens |
+| `resolve_references(parsed_json, all_articles)` | Maps Claude's JSON refs back to full RSS article data (URL, image, source, etc.) |
+| `build_email_html_from_json(sections)` | Renders resolved sections to styled HTML email using stdlib `html.escape()` (XSS-safe) |
+| `send_email_gmail(subject, body_html, recipients)` | Sends via Gmail SMTP with App Password |
 | `main()` | Orchestrates fetch → summarize → print → email |
 
 ## RSS sources

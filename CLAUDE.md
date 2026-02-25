@@ -26,10 +26,11 @@ Tests are standalone scripts (not pytest). Each is run directly with `uv run`. T
 
 **Single-file pipeline** (`src/email_pipeline.py`):
 1. `fetch_rss_articles()` — fetches RSS, filters to last 24h (UTC), extracts images via `extract_image_url()`
-2. `generate_summary_with_claude()` — builds a Chinese-language prompt with all articles, calls Claude API
-3. `build_email_html()` — renders Claude's markdown output to a styled HTML email
-4. `send_email_gmail()` — delivers via Gmail SMTP with App Password
-5. `main()` — orchestrates the pipeline
+2. `generate_summary_with_claude()` — builds a Chinese-language prompt, calls Claude API, returns structured JSON with article refs (e.g. `"Tech & AI:3"`) instead of full text to minimize output tokens
+3. `resolve_references()` — maps Claude's JSON article refs back to full RSS article data (URL, image, source, etc.)
+4. `build_email_html_from_json()` — renders resolved sections to a styled HTML email using stdlib `html.escape()` (XSS-safe)
+5. `send_email_gmail()` — delivers via Gmail SMTP with App Password
+6. `main()` — orchestrates the pipeline
 
 RSS sources are defined in `RSS_SOURCES` dict at module level, grouped by 5 categories: Tech & AI, Global Affairs, Business & Finance, Pacific Northwest, Health & Science.
 

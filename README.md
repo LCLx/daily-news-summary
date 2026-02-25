@@ -118,8 +118,7 @@ All configuration lives in `email_pipeline.py`:
 - Python 3.11
 - [feedparser](https://feedparser.readthedocs.io/) — RSS parsing
 - [anthropic](https://github.com/anthropics/anthropic-sdk-python) — Claude API client
-- [markdown](https://python-markdown.github.io/) — markdown to HTML rendering
-- Gmail SMTP (`smtplib`) — email delivery (stdlib, no extra dependency)
+- Gmail SMTP (`smtplib`) + stdlib `json`/`html` — email delivery and HTML rendering (no extra dependencies)
 - GitHub Actions — scheduling and execution
 
 ## License
