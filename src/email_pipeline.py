@@ -297,7 +297,7 @@ def generate_summary_with_claude(all_articles):
         client = Anthropic(api_key=ANTHROPIC_API_KEY)
         message = client.messages.create(
             model=CLAUDE_MODEL,
-            max_tokens=10000,
+            max_tokens=14000,
             messages=[{"role": "user", "content": prompt}]
         )
         return message.content[0].text
