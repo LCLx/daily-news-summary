@@ -16,6 +16,7 @@ Both pipelines fetch articles published in the last 24 hours, select the most ne
 | Business & Finance | Financial Times, Reuters (via Google News), WSJ Markets |
 | Pacific Northwest | Seattle Times, CBC British Columbia |
 | Health & Science | ScienceDaily, Nature, NPR Health |
+| Deals | Slickdeals, Reddit r/deals |
 
 ## Setup
 
@@ -100,11 +101,12 @@ The workflow runs automatically on schedule and can also be triggered manually v
 
 ## Configuration
 
-All configuration lives in `email_pipeline.py`:
-
-- **`RSS_SOURCES`** — add or remove feeds per category; the dict key becomes the section heading passed to Claude
-- **`hours` parameter** in `fetch_rss_articles()` — controls the lookback window (default: 24h)
-- **Prompt** in `generate_summary_with_claude()` — controls output format and article count per section
+| What to change | Where |
+|---|---|
+| RSS feeds | `src/config.py` — `RSS_SOURCES` dict |
+| Claude prompt / selection rules | `src/prompts/email_digest.md` |
+| Email layout and CSS | `src/templates/email.html` |
+| Lookback window (default 24h) | `hours` parameter in `fetch_rss_articles()` in `src/rss.py` |
 
 ## Cost
 
@@ -117,8 +119,9 @@ All configuration lives in `email_pipeline.py`:
 
 - Python 3.11
 - [feedparser](https://feedparser.readthedocs.io/) — RSS parsing
-- [anthropic](https://github.com/anthropics/anthropic-sdk-python) — Claude API client
-- Gmail SMTP (`smtplib`) + stdlib `json`/`html` — email delivery and HTML rendering (no extra dependencies)
+- [anthropic](https://github.com/anthropics/anthropic-sdk-python) — Claude API client (tool calling for guaranteed valid JSON output)
+- [json-repair](https://github.com/mangiucugna/json_repair) — JSON repair fallback for CLI backend
+- Gmail SMTP (`smtplib`) + stdlib `json`/`html` — email delivery and HTML rendering
 - GitHub Actions — scheduling and execution
 
 ## License

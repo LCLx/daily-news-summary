@@ -9,19 +9,13 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
-
 import json
-from email_pipeline import (
-    RSS_SOURCES,
-    fetch_rss_articles,
-    generate_summary_with_claude,
-    resolve_references,
-    build_email_html_from_json,
-    send_email_gmail,
-    EMAIL_TO,
-)
+from config import RSS_SOURCES, EMAIL_TO
+from rss import fetch_rss_articles
+from claude_client import generate_summary_with_claude
+from digest import resolve_references
+from renderer import build_email_html_from_json
+from mailer import send_email_gmail
 from datetime import datetime
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'generated')
@@ -64,7 +58,12 @@ def run():
     sections = resolve_references(parsed, all_articles)
     print("  Done.")
 
-    # Save HTML preview
+    # Save JSON and HTML preview
+    json_path = os.path.join(OUTPUT_DIR, "preview.json")
+    with open(json_path, "w") as f:
+        json.dump(parsed, f, ensure_ascii=False, indent=2)
+    print(f"  JSON saved → {json_path}")
+
     html = build_email_html_from_json(sections)
     preview_path = os.path.join(OUTPUT_DIR, "preview.html")
     with open(preview_path, "w") as f:

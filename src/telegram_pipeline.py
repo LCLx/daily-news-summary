@@ -4,10 +4,9 @@ Daily news summary: RSS → Claude → Telegram
 Run: uv run src/telegram_pipeline.py
 """
 import re, json, os, sys, shutil, urllib.request, urllib.error
-from pathlib import Path
-from dotenv import load_dotenv
-load_dotenv(Path(__file__).parent.parent / '.env')
-from email_pipeline import fetch_rss_articles, RSS_SOURCES
+
+from config import RSS_SOURCES
+from rss import fetch_rss_articles
 
 OPENCLAW_CONFIG = os.environ['OPENCLAW_CONFIG']
 CLAUDE_MODEL = os.environ['CLAUDE_MODEL']

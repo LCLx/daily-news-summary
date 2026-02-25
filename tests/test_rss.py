@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 import feedparser
 from datetime import datetime, timedelta, timezone
-from email_pipeline import RSS_SOURCES
+from config import RSS_SOURCES
 
 HOURS = 24
 cutoff_time = datetime.now(timezone.utc) - timedelta(hours=HOURS)
