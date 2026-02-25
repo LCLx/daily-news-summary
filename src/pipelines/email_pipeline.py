@@ -5,14 +5,18 @@ Runs on GitHub Actions daily at 08:00 PST (UTC 16:00).
 """
 
 import json
+import os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+
 from datetime import datetime
 
-from config import RSS_SOURCES, EMAIL_TO
-from rss import fetch_rss_articles
-from claude_client import generate_summary_with_claude
-from digest import resolve_references
-from renderer import build_email_html_from_json
-from mailer import send_email_gmail
+from core.config import RSS_SOURCES, EMAIL_TO
+from core.rss import fetch_rss_articles
+from core.claude_client import generate_summary_with_claude
+from core.digest import resolve_references
+from core.renderer import build_email_html_from_json
+from core.mailer import send_email_gmail
 
 
 def main():

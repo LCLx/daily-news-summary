@@ -50,10 +50,10 @@ uv sync
 # CLAUDE_MODEL=claude-haiku-4-5-20251001
 
 # Run email pipeline
-uv run src/email_pipeline.py
+uv run src/pipelines/email_pipeline.py
 
 # Run Telegram pipeline
-uv run src/telegram_pipeline.py
+uv run src/pipelines/telegram_pipeline.py
 ```
 
 ### Testing
@@ -103,10 +103,10 @@ The workflow runs automatically on schedule and can also be triggered manually v
 
 | What to change | Where |
 |---|---|
-| RSS feeds | `src/config.py` — `RSS_SOURCES` dict |
+| RSS feeds | `src/core/config.py` — `RSS_SOURCES` dict |
 | Claude prompt / selection rules | `src/prompts/email_digest.md` |
 | Email layout and CSS | `src/templates/email.html` |
-| Lookback window (default 24h) | `hours` parameter in `fetch_rss_articles()` in `src/rss.py` |
+| Lookback window (default 24h) | `hours` parameter in `fetch_rss_articles()` in `src/core/rss.py` |
 
 ## Cost
 

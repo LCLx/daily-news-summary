@@ -2,7 +2,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from config import GMAIL_USER, GMAIL_APP_PASSWORD
+from core.config import GMAIL_USER, GMAIL_APP_PASSWORD
 
 
 def send_email_gmail(subject, body_html, recipients):

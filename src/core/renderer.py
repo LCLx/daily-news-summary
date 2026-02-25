@@ -2,7 +2,7 @@ import html
 from datetime import datetime
 from pathlib import Path
 
-_TEMPLATE = (Path(__file__).parent / 'templates' / 'email.html').read_text(encoding='utf-8')
+_TEMPLATE = (Path(__file__).parent.parent / 'templates' / 'email.html').read_text(encoding='utf-8')
 
 _ARTICLE_IMG_STYLE = (
     'display:block;max-width:100%;height:auto;'

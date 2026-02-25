@@ -1,4 +1,4 @@
-from config import CATEGORY_EMOJIS
+from core.config import CATEGORY_EMOJIS
 
 
 def resolve_references(parsed_json, all_articles):

@@ -8,9 +8,9 @@ from pathlib import Path
 from anthropic import Anthropic
 from json_repair import repair_json
 
-from config import ANTHROPIC_API_KEY, CLAUDE_MODEL, CLAUDE_MAX_TOKENS, CLAUDE_MAX_RETRIES
+from core.config import ANTHROPIC_API_KEY, CLAUDE_MODEL, CLAUDE_MAX_TOKENS, CLAUDE_MAX_RETRIES
 
-_PROMPT_PATH = Path(__file__).parent / 'prompts' / 'email_digest.md'
+_PROMPT_PATH = Path(__file__).parent.parent / 'prompts' / 'email_digest.md'
 
 # Tool schema for structured JSON output via API tool calling.
 # Forces Claude to return valid JSON matching this schema — eliminates parse errors.
