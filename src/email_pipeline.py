@@ -4,13 +4,14 @@ Daily news digest generator
 Uses RSS + Claude API + Resend email
 """
 
+import html
+import json
 import os
 import re
 import shutil
 import socket
 import subprocess
 import feedparser
-import markdown as md
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -65,6 +66,12 @@ CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL', 'claude-haiku-4-5-20251001')
 GMAIL_USER = os.environ.get('GMAIL_USER')        # your.address@gmail.com
 GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')  # 16-char App Password
 EMAIL_TO = os.environ.get('EMAIL_TO')            # Recipients, comma-separated
+
+# Category emoji fallback map (used by resolve_references)
+CATEGORY_EMOJIS = {
+    '科技与AI': '💻', '国际政治': '🌍', '经济与商业': '💰',
+    '太平洋西北地区': '🌲', '健康与科学': '🔬', '今日优惠': '🛍️',
+}
 
 # ==================== Core functions ====================
 
@@ -188,7 +195,7 @@ def generate_summary_with_claude(all_articles):
         all_articles: dict of articles grouped by category
 
     Returns:
-        str: Generated Chinese digest in markdown
+        str: Generated Chinese digest in JSON format
     """
     use_cli = os.environ.get('CLAUDE_BACKEND', '').lower() == 'cli'
     if not use_cli and not ANTHROPIC_API_KEY:
@@ -215,135 +222,215 @@ def generate_summary_with_claude(all_articles):
 
     full_content = "\n".join(articles_by_category)
 
-    # Claude prompt
-    prompt = f"""以下是今日各板块的英文新闻（已按板块分类）：
+    # Claude prompt — output JSON to minimize output tokens
+    prompt = f"""以下是今日各板块的英文新闻（已按板块分类）。每条新闻有编号 [i]，请用 "分类名:编号" 引用。
 
 {full_content}
 
-请按以下要求生成中文新闻摘要：
+请从以上新闻中选稿，输出一个 JSON 对象。不要输出任何其他内容（无 markdown、无开场白、无结束语）。
 
-**输出要求：**
-1. 分为6个板块：科技与AI、国际政治、经济与商业、太平洋西北地区、健康与科学、今日优惠
-2. 前5个板块各选最重要的5条新闻
-3. 「今日优惠」板块从 Deals 类别选出最多10条最值得买的优惠
-4. 每条新闻包含：
-   - 中文标题
-   - 100-150字中文摘要
-   - 原文链接（保持原样）
-   - 来源媒体名称
+**JSON 格式：**
+{{"sections": [
+  {{"category": "科技与AI", "emoji": "💻", "items": [
+    {{"ref": "Tech & AI:3", "title_zh": "中文标题", "summary_zh": "100-150字中文摘要"}}
+  ]}},
+  {{"category": "今日优惠", "emoji": "🛍️", "items": [
+    {{"ref": "Deals:5", "title_zh": "中文商品名", "summary_zh": "一句话介绍", "price": "$XX.XX", "original_price": "$YY", "discount": "XX%", "store": "Amazon"}}
+  ]}}
+]}}
 
-**格式示例（新闻板块）：**
-## 💻 科技与AI
-
-### 1. [中文标题]
-![](图片URL)
-[中文摘要，100-150字]
-
-🔗 原文: [原始英文标题](链接)
-📰 来源: 媒体名称 | 发布时间
-
----
-
-**格式示例（今日优惠板块）：**
-## 🛍️ 今日优惠
-
-### 1. [中文商品名]
-![](图片URL)
-**$XX.XX**（原价 $XX，省 XX%）｜ 📍 Amazon / Walmart / ...
-一句话介绍这是什么商品。
-🔗 [查看优惠](链接)
-
----
-
-### 2. [中文商品名]
-...
-
-**今日优惠选品规则：**
-- **排除** Renewed / Refurbished / Like-New / Open Box 等二手翻新产品
-- **排除** 母婴产品（婴儿服装/睡衣/玩具、幼儿用品、孕产品等）
-- 电子产品/电脑/配件类合计**不超过6条**，其余名额优先分配给家居、工具、游戏、户外装备、背包箱包等
-- 若去掉消耗品后不足10条，可用食品/饮料/日用消耗品补足，但消耗品排在后面
-- 折扣力度优先（30%+ 以上优先考虑）
-- 如原文有价格信息，必须在摘要中写明价格和折扣幅度
-- 商品名中的品牌名保留英文原名，不要翻译（如 Logitech、KEF、Garmin、Nintendo 等）
-
-**重要：**
-- 不要使用任何citation标签（如<cite>）
-- 链接使用标准markdown格式
-- 选择最有新闻价值和影响力的内容
-- 摘要要准确、客观、简洁
-- 直接输出内容，不要有任何开场白或结束语
-- 新闻和优惠都适用：如果文章提供了"图片"字段，**必须**在中文标题下一行插入 ![](图片URL)；没有"图片"字段则**绝对不能**插入任何图片，不要自行补充或猜测图片URL
+**选稿规则：**
+- 6个板块：科技与AI、国际政治、经济与商业、太平洋西北地区、健康与科学、今日优惠
+- 前5个板块各选最重要的5条新闻
+- 今日优惠从 Deals 类别选最多10条
+- ref 字段格式为 "分类名:编号"，分类名必须与输入中的板块标题完全一致（如 "Tech & AI:3"）
+- summary_zh 长度 100-150 字，准确客观简洁
+- 品牌名保留英文原名（如 Logitech、KEF、Garmin、Nintendo）
 
 **选稿标准（新闻）：**
 - 优先选影响全球格局的重大事件，避免软新闻和娱乐性内容
 - 同一事件只选一条，选报道最完整的
 - 科技板块优先选 AI 相关新闻
-"""
 
+**今日优惠选品规则：**
+- 排除 Renewed/Refurbished/Like-New/Open Box 等二手翻新产品
+- 排除母婴产品
+- 电子产品/电脑/配件类合计不超过6条，其余名额优先分配给家居、工具、游戏、户外装备、背包箱包等
+- 若去掉消耗品后不足10条，可用食品/饮料/日用消耗品补足，消耗品排后面
+- 折扣力度优先（30%+优先考虑）
+- 如原文有价格信息，必须提取 price/original_price/discount 字段
+
+只输出合法 JSON，不要任何其他内容。"""
+
+    # Set up backend-specific call function
     if use_cli:
         print("Calling Claude CLI to generate digest...")
         claude_bin = shutil.which('claude') or 'claude'
         env = {k: v for k, v in os.environ.items() if k != 'CLAUDECODE'}
-        result = subprocess.run(
-            [claude_bin, '--model', CLAUDE_MODEL, '--print', prompt],
-            capture_output=True, text=True, stdin=subprocess.DEVNULL, env=env
-        )
-        if result.returncode != 0 or not result.stdout.strip():
-            raise RuntimeError(f"Claude CLI failed (exit {result.returncode}): {result.stderr.strip()}")
-        return result.stdout.strip()
+        def call_claude():
+            result = subprocess.run(
+                [claude_bin, '--model', CLAUDE_MODEL, '--print', prompt],
+                capture_output=True, text=True, stdin=subprocess.DEVNULL, env=env
+            )
+            if result.returncode != 0 or not result.stdout.strip():
+                raise RuntimeError(f"Claude CLI failed (exit {result.returncode}): {result.stderr.strip()}")
+            return result.stdout.strip()
     else:
         print("Calling Claude API to generate digest...")
         client = Anthropic(api_key=ANTHROPIC_API_KEY)
-        message = client.messages.create(
-            model=CLAUDE_MODEL,
-            max_tokens=14000,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return message.content[0].text
+        def call_claude():
+            message = client.messages.create(
+                model=CLAUDE_MODEL,
+                max_tokens=8000,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return message.content[0].text
+
+    def strip_fences(text):
+        if text.startswith('```'):
+            text = re.sub(r'^```\w*\n?', '', text)
+            text = re.sub(r'\n?```$', '', text)
+        return text
+
+    text = strip_fences(call_claude())
+
+    # Validate JSON; retry once if invalid
+    try:
+        json.loads(text)
+    except json.JSONDecodeError as e:
+        print(f"⚠️ Claude returned invalid JSON ({e}), retrying...")
+        text = strip_fences(call_claude())
+        try:
+            json.loads(text)
+        except json.JSONDecodeError as e2:
+            raise ValueError(f"Claude returned invalid JSON twice: {e2}\nOutput: {text[:500]}") from e2
+
+    return text
 
 
-def build_email_html(body_markdown):
+def resolve_references(parsed_json, all_articles):
     """
-    Render markdown to a complete HTML email using the markdown library.
+    Resolve ref fields in Claude's JSON output to full article data.
 
     Args:
-        body_markdown: Email body in markdown format
+        parsed_json: Parsed JSON dict from Claude (with "sections" key)
+        all_articles: Original article dict keyed by category name
+
+    Returns:
+        list of section dicts with resolved article data
+    """
+    sections = []
+    for section in parsed_json.get('sections', []):
+        category = section.get('category', '')
+        emoji = section.get('emoji') or CATEGORY_EMOJIS.get(category, '')
+        resolved_items = []
+        for item in section.get('items', []):
+            ref = item.get('ref', '')
+            if ':' not in ref:
+                print(f"⚠️ Invalid ref format: {ref}")
+                continue
+            cat_key, idx_str = ref.rsplit(':', 1)
+            try:
+                idx = int(idx_str)
+            except ValueError:
+                print(f"⚠️ Invalid ref index: {ref}")
+                continue
+            cat_articles = all_articles.get(cat_key, [])
+            if idx < 1 or idx > len(cat_articles):
+                print(f"⚠️ Ref out of range: {ref} (have {len(cat_articles)} articles)")
+                continue
+            original = cat_articles[idx - 1]
+            resolved = {
+                'title_zh': item.get('title_zh', ''),
+                'summary_zh': item.get('summary_zh', ''),
+                'link': original.get('link', ''),
+                'title': original.get('title', ''),
+                'source': original.get('source', ''),
+                'published': original.get('published', ''),
+                'image_url': original.get('image_url'),
+            }
+            # Deal-specific fields
+            for field in ('price', 'original_price', 'discount', 'store'):
+                if field in item:
+                    resolved[field] = item[field]
+            resolved_items.append(resolved)
+        sections.append({
+            'category': category,
+            'emoji': emoji,
+            'items': resolved_items,
+        })
+    return sections
+
+
+def build_email_html_from_json(sections):
+    """
+    Build a complete HTML email directly from resolved section data.
+
+    Args:
+        sections: list of section dicts from resolve_references()
 
     Returns:
         str: Full HTML document string
     """
-    body_html = md.markdown(body_markdown, extensions=['extra'])
-    # Wrap the deals section so .deals-section img CSS applies to all deal images
-    # regardless of CDN source (SlickDeals, Reddit, etc.)
-    body_html = re.sub(
-        r'(<h2[^>]*>🛍️\s*今日优惠</h2>)',
-        r'<div class="deals-section">\1',
-        body_html
+    article_img_style = (
+        'display:block;max-width:100%;height:auto;'
+        'margin:10px auto 16px;border-radius:6px;'
     )
-    if 'class="deals-section"' in body_html:
-        body_html += '</div>'
-    # Inline styles for email client compatibility (many mobile clients strip <style> tags)
     deals_img_style = (
-        'style="width:110px !important;height:110px !important;'
+        'width:110px !important;height:110px !important;'
         'max-width:110px !important;max-height:110px !important;'
         'object-fit:contain !important;float:left !important;'
         'margin:0 14px 6px 0 !important;border-radius:4px !important;'
-        'border:1px solid #eee !important;background:#f9f9f9 !important;" '
+        'border:1px solid #eee !important;background:#f9f9f9 !important;'
     )
-    if 'class="deals-section"' in body_html:
-        parts = body_html.split('<div class="deals-section">', 1)
-        deals_part = parts[1].replace('<img ', f'<img {deals_img_style}')
-        body_html = parts[0] + '<div class="deals-section">' + deals_part
-    # Add centering inline styles to article images (those without style= already).
-    # Use max-width (not width:100%) to avoid stretching in Gmail.
-    article_img_style = (
-        'style="display:block;max-width:100%;height:auto;'
-        'margin:10px auto 16px;border-radius:6px;" '
-    )
-    body_html = re.sub(r'<img (?!style=)', f'<img onerror="this.remove()" {article_img_style}', body_html)
-    # Add onerror to deals images too (which already have style=)
-    body_html = body_html.replace('<img style=', '<img onerror="this.remove()" style=')
+
+    body_parts = []
+    for section in sections:
+        category = section['category']
+        emoji = section.get('emoji', '')
+        is_deals = category == '今日优惠'
+
+        body_parts.append(f'<h2>{emoji} {html.escape(category)}</h2>')
+        if is_deals:
+            body_parts.append('<div class="deals-section">')
+
+        for i, item in enumerate(section['items'], 1):
+            body_parts.append(f'<h3>{i}. {html.escape(item["title_zh"])}</h3>')
+
+            # Image — URL goes into an attribute; escape it to prevent attribute injection
+            if item.get('image_url'):
+                img_style = deals_img_style if is_deals else article_img_style
+                body_parts.append(
+                    f'<img onerror="this.remove()" style="{img_style}" src="{html.escape(item["image_url"])}" />'
+                )
+
+            if is_deals:
+                # Price line
+                price_parts = []
+                if item.get('price'):
+                    price_parts.append(f'<strong>{html.escape(item["price"])}</strong>')
+                if item.get('original_price') and item.get('discount'):
+                    price_parts.append(f'（原价 {html.escape(item["original_price"])}，省 {html.escape(item["discount"])}）')
+                if item.get('store'):
+                    price_parts.append(f'｜ 📍 {html.escape(item["store"])}')
+                if price_parts:
+                    body_parts.append(f'<p>{"".join(price_parts)}</p>')
+                body_parts.append(f'<p>{html.escape(item["summary_zh"])}</p>')
+                body_parts.append(
+                    f'<p>🔗 <a href="{html.escape(item["link"])}">查看优惠</a></p>'
+                )
+            else:
+                body_parts.append(f'<p>{html.escape(item["summary_zh"])}</p>')
+                body_parts.append(
+                    f'<p>🔗 原文: <a href="{html.escape(item["link"])}">{html.escape(item["title"])}</a><br/>'
+                    f'📰 来源: {html.escape(item["source"])} | {html.escape(item["published"])}</p>'
+                )
+            body_parts.append('<hr/>')
+
+        if is_deals:
+            body_parts.append('</div>')
+
+    body_html = '\n'.join(body_parts)
 
     return f"""<!DOCTYPE html>
 <html>
@@ -437,26 +524,24 @@ def build_email_html(body_markdown):
 </html>"""
 
 
-def send_email_gmail(subject, body_markdown, recipients):
+def send_email_gmail(subject, body_html, recipients):
     """
     Send an HTML email via Gmail SMTP using an App Password.
 
     Args:
         subject: Email subject line
-        body_markdown: Email body in markdown format
+        body_html: Complete HTML email body
         recipients: List of recipient addresses
     """
     if not GMAIL_USER or not GMAIL_APP_PASSWORD:
         print("⚠️ GMAIL_USER or GMAIL_APP_PASSWORD not set, skipping email")
         return
 
-    html = build_email_html(body_markdown)
-
     msg = MIMEMultipart('alternative')
     msg['Subject'] = subject
     msg['From'] = GMAIL_USER
     msg['To'] = ', '.join(recipients)
-    msg.attach(MIMEText(html, 'html'))
+    msg.attach(MIMEText(body_html, 'html'))
 
     try:
         print(f"Sending email via Gmail to {', '.join(recipients)}...")
@@ -493,21 +578,27 @@ def main():
         print("⚠️ No articles found, exiting")
         return
 
-    # 2. Generate digest via Claude
-    summary = generate_summary_with_claude(all_articles)
+    # 2. Generate digest via Claude (JSON output)
+    json_str = generate_summary_with_claude(all_articles)
+    parsed = json.loads(json_str)
+    sections = resolve_references(parsed, all_articles)
 
     # 3. Print to console
     print("\n" + "=" * 60)
     print("📋 Generated digest:")
     print("=" * 60)
-    print(summary)
-    print("=" * 60)
+    for section in sections:
+        print(f"\n{section['emoji']} {section['category']}")
+        for i, item in enumerate(section['items'], 1):
+            print(f"  {i}. {item['title_zh']}")
+    print("\n" + "=" * 60)
 
-    # 4. Send email
+    # 4. Build HTML and send email
+    email_html = build_email_html_from_json(sections)
     if EMAIL_TO:
-        recipients = [email.strip() for email in EMAIL_TO.split(',')]
+        recipients = [addr.strip() for addr in EMAIL_TO.split(',')]
         subject = f"📰 每日新闻摘要 - {datetime.now().strftime('%Y年%m月%d日')}"
-        send_email_gmail(subject, summary, recipients)
+        send_email_gmail(subject, email_html, recipients)
     else:
         print("\n⚠️ EMAIL_TO not set, skipping email")
 

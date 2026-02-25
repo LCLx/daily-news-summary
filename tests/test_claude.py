@@ -10,7 +10,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
-from email_pipeline import RSS_SOURCES, fetch_rss_articles, generate_summary_with_claude, build_email_html
+import json
+from email_pipeline import RSS_SOURCES, fetch_rss_articles, generate_summary_with_claude, resolve_references, build_email_html_from_json
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'generated')
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -40,11 +41,24 @@ if __name__ == '__main__':
         exit(1)
 
     print("Invoking Claude...\n" + "=" * 60 + "\n")
-    result = generate_summary_with_claude(all_articles)
-    print(result)
+    json_str = generate_summary_with_claude(all_articles)
+    parsed = json.loads(json_str)
+    sections = resolve_references(parsed, all_articles)
 
-    html = build_email_html(result)
+    # Print digest summary
+    for section in sections:
+        print(f"\n{section['emoji']} {section['category']}")
+        for i, item in enumerate(section['items'], 1):
+            print(f"  {i}. {item['title_zh']}")
+
+    # Save raw JSON for debugging
+    json_path = os.path.join(OUTPUT_DIR, "preview.json")
+    with open(json_path, "w") as f:
+        json.dump(parsed, f, ensure_ascii=False, indent=2)
+    print(f"\nJSON saved to {json_path}")
+
+    html = build_email_html_from_json(sections)
     preview_path = os.path.join(OUTPUT_DIR, "preview.html")
     with open(preview_path, "w") as f:
         f.write(html)
-    print(f"\nHTML preview saved to {preview_path}")
+    print(f"HTML preview saved to {preview_path}")

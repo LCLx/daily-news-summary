@@ -12,11 +12,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
+import json
 from email_pipeline import (
     RSS_SOURCES,
     fetch_rss_articles,
     generate_summary_with_claude,
-    build_email_html,
+    resolve_references,
+    build_email_html_from_json,
     send_email_gmail,
     EMAIL_TO,
 )
@@ -57,11 +59,13 @@ def run():
 
     # Step 2: Generate digest with Claude
     print("\n[2/3] Generating digest with Claude...")
-    summary = generate_summary_with_claude(all_articles)
+    json_str = generate_summary_with_claude(all_articles)
+    parsed = json.loads(json_str)
+    sections = resolve_references(parsed, all_articles)
     print("  Done.")
 
     # Save HTML preview
-    html = build_email_html(summary)
+    html = build_email_html_from_json(sections)
     preview_path = os.path.join(OUTPUT_DIR, "preview.html")
     with open(preview_path, "w") as f:
         f.write(html)
@@ -74,7 +78,7 @@ def run():
     else:
         recipients = [e.strip() for e in EMAIL_TO.split(',')]
         subject = f"📰 每日新闻摘要 - {datetime.now().strftime('%Y年%m月%d日')}"
-        send_email_gmail(subject, summary, recipients)
+        send_email_gmail(subject, html, recipients)
 
     print("\n" + "=" * 60)
     print("✅ Integration test complete")
