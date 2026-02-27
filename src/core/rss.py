@@ -55,6 +55,24 @@ def extract_image_url(entry):
     return None
 
 
+_SOURCE_NAME_OVERRIDES = {
+    'www.ft.com': 'Financial Times',
+}
+
+
+def _resolve_source_name(feed_url, feed_title):
+    """Return a clean source name, handling Google News search and known overrides."""
+    from urllib.parse import urlparse
+    domain = urlparse(feed_url).hostname or ''
+    if domain in _SOURCE_NAME_OVERRIDES:
+        return _SOURCE_NAME_OVERRIDES[domain]
+    if domain == 'news.google.com' and '/search' in feed_url:
+        match = re.search(r'allinurl:([a-zA-Z0-9.-]+\.[a-z]{2,})', feed_url)
+        if match:
+            return match.group(1).split('.')[0].capitalize()
+    return feed_title
+
+
 def fetch_rss_articles(category, feeds, hours=24, max_per_feed=4):
     """
     Fetch recent articles from the given RSS feeds.
@@ -81,6 +99,7 @@ def fetch_rss_articles(category, feeds, hours=24, max_per_feed=4):
             )
             socket.setdefaulttimeout(None)
 
+            source_name = _resolve_source_name(feed_url, feed.feed.get('title', 'Unknown'))
             feed_article_count = 0
             for entry in feed.entries:
                 if feed_article_count >= max_per_feed:
@@ -100,7 +119,7 @@ def fetch_rss_articles(category, feeds, hours=24, max_per_feed=4):
                         'pub_date': pub_date,
                         'published': pub_date.strftime('%Y-%m-%d %H:%M'),
                         'summary': entry.get('summary', '')[:300],
-                        'source': feed.feed.get('title', 'Unknown'),
+                        'source': source_name,
                         'category': category,
                         'image_url': extract_image_url(entry),
                     })

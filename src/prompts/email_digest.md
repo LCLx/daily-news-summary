@@ -2,23 +2,13 @@
 
 $articles
 
-请从以上新闻中选稿，输出一个 JSON 对象。不要输出任何其他内容（无 markdown、无开场白、无结束语）。
-
-**JSON 格式：**
-{"sections": [
-  {"category": "科技与AI", "items": [
-    {"ref": "Tech & AI:3", "title_zh": "中文标题", "summary_zh": "100-150字中文摘要"}
-  ]},
-  {"category": "今日优惠", "items": [
-    {"ref": "Deals:5", "title_zh": "中文商品名", "summary_zh": "一句话介绍", "price": "$XX.XX", "original_price": "$YY", "discount": "XX%", "store": "Amazon"}
-  ]}
-]}
+请从以上新闻中选稿。$format_instructions
 
 **选稿规则：**
 - 6个板块：科技与AI、国际政治、经济与商业、太平洋西北地区、健康与科学、今日优惠
 - 前5个板块各选最重要的5条新闻
 - 今日优惠从 Deals 类别选最多10条
-- ref 字段格式为 "分类名:编号"，分类名必须与输入中的板块标题完全一致（如 "Tech & AI:3"）
+- ref 格式为 "分类名:编号"，分类名必须与输入中的板块标题完全一致（如 "Tech & AI:3"）
 - summary_zh 长度 100-150 字，准确客观简洁
 - 品牌名保留英文原名（如 Logitech、KEF、Garmin、Nintendo）
 
@@ -34,5 +24,3 @@ $articles
 - 若去掉消耗品后不足10条，可用食品/饮料/日用消耗品补足，消耗品排后面
 - 折扣力度优先（30%+优先考虑）
 - 如原文有价格信息，必须提取 price/original_price/discount 字段
-
-只输出合法 JSON，不要任何其他内容。

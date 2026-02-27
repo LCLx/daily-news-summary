@@ -12,6 +12,21 @@ from core.config import ANTHROPIC_API_KEY, CLAUDE_MODEL, CLAUDE_MAX_TOKENS, CLAU
 
 _PROMPT_PATH = Path(__file__).parent.parent / 'prompts' / 'email_digest.md'
 
+# CLI-only: JSON format instructions (API mode uses tool schema instead, saving input tokens)
+_CLI_FORMAT_INSTRUCTIONS = """输出一个 JSON 对象，不要任何其他内容（无 markdown、无开场白、无结束语）。
+
+**JSON 格式：**
+{"sections": [
+  {"category": "科技与AI", "items": [
+    {"ref": "Tech & AI:3", "title_zh": "中文标题", "summary_zh": "100-150字中文摘要"}
+  ]},
+  {"category": "今日优惠", "items": [
+    {"ref": "Deals:5", "title_zh": "中文商品名", "summary_zh": "一句话介绍", "price": "$XX.XX", "original_price": "$YY", "discount": "XX%", "store": "Amazon"}
+  ]}
+]}
+
+只输出合法 JSON，不要任何其他内容。"""
+
 # Tool schema for structured JSON output via API tool calling.
 # Forces Claude to return valid JSON matching this schema — eliminates parse errors.
 _DIGEST_TOOL = {
@@ -42,7 +57,7 @@ _DIGEST_TOOL = {
                             }
                         },
                     },
-                    "required": ["category", "emoji", "items"],
+                    "required": ["category", "items"],
                 }
             }
         },
@@ -70,7 +85,7 @@ def generate_summary_with_claude(all_articles):
     if not use_cli and not ANTHROPIC_API_KEY:
         raise ValueError("Set ANTHROPIC_API_KEY (API) or CLAUDE_BACKEND=cli (CLI)")
 
-    prompt = _build_prompt(all_articles)
+    prompt = _build_prompt(all_articles, use_api=not use_cli)
 
     if use_cli:
         print("Calling Claude CLI to generate digest...")
@@ -140,21 +155,20 @@ def _call_cli(prompt):
     raise ValueError(f"Claude CLI failed after {CLAUDE_MAX_RETRIES} attempts: {last_err}")
 
 
-def _build_prompt(all_articles):
+def _build_prompt(all_articles, *, use_api=False):
     articles_by_category = []
     for category, articles in all_articles.items():
         if not articles:
             continue
         block = f"\n## {category}\n\n"
         for i, article in enumerate(articles[:15], 1):
-            block += f"[{i}] {article['title']}\n"
-            block += f"来源: {article['source']}\n"
-            block += f"摘要: {article['summary']}\n"
-            block += "\n"
+            block += f"[{i}] {article['title']} | {article['source']}\n{article['summary']}\n\n"
         articles_by_category.append(block)
 
     full_content = "\n".join(articles_by_category)
-    return _PROMPT_PATH.read_text(encoding='utf-8').replace('$articles', full_content)
+    format_instructions = '' if use_api else _CLI_FORMAT_INSTRUCTIONS
+    template = _PROMPT_PATH.read_text(encoding='utf-8')
+    return template.replace('$articles', full_content).replace('$format_instructions', format_instructions)
 
 
 def _strip_fences(text):
