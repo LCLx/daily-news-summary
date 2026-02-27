@@ -162,7 +162,7 @@ def _build_prompt(all_articles, *, use_api=False):
             continue
         block = f"\n## {category}\n\n"
         for i, article in enumerate(articles[:15], 1):
-            block += f"[{i}] {article['title']} | {article['source']}\n{article['summary']}\n\n"
+            block += f"[{i}] {article['title']} | src: {article['source']}\n{article['summary']}\n\n"
         articles_by_category.append(block)
 
     full_content = "\n".join(articles_by_category)

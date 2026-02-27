@@ -3,88 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-        line-height: 1.6;
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px;
-        color: #333;
-      }
-      h2 {
-        color: #2c3e50;
-        border-bottom: 2px solid #3498db;
-        padding-bottom: 10px;
-        margin-top: 30px;
-      }
-      h3 {
-        color: #34495e;
-        margin-top: 32px;
-        margin-bottom: 8px;
-        padding-top: 24px;
-        border-top: 1px solid #eee;
-      }
-      img {
-        display: block !important;
-        max-width: 100% !important;
-        max-height: 400px !important;
-        width: auto !important;
-        height: auto !important;
-        object-fit: contain !important;
-        border-radius: 6px;
-        margin: 10px auto 16px;
-      }
-      a {
-        color: #3498db;
-        text-decoration: none;
-      }
-      a:hover {
-        text-decoration: underline;
-      }
-      hr {
-        border: none;
-        border-top: 1px solid #eee;
-        margin: 25px 0;
-        clear: both;
-      }
-      p {
-        margin: 15px 0;
-      }
-      .deals-section p {
-        white-space: pre-line;
-      }
-      .deals-section p strong {
-        font-size: 1.15em;
-      }
-      .deals-section img {
-        width: 110px !important;
-        height: 110px !important;
-        max-width: 110px !important;
-        max-height: 110px !important;
-        object-fit: contain !important;
-        float: left !important;
-        margin: 0 14px 6px 0 !important;
-        border-radius: 4px !important;
-        border: 1px solid #eee !important;
-        background: #f9f9f9 !important;
-      }
-      .footer {
-        margin-top: 40px;
-        padding-top: 20px;
-        border-top: 1px solid #ddd;
-        color: #7f8c8d;
-        font-size: 12px;
-        text-align: center;
-      }
-    </style>
   </head>
-  <body>
-    <h1 style="color: #2c3e50; text-align: center;">📰 今日新闻摘要</h1>
-    <p style="text-align: center; color: #7f8c8d;">$date_str</p>
-    <hr/>
+  <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;line-height:1.6;max-width:800px;margin:0 auto;padding:20px;color:#333;">
+    <h1 style="color:#2c3e50;text-align:center;">📰 今日新闻摘要</h1>
+    <p style="text-align:center;color:#7f8c8d;">$date_str</p>
+    <hr style="border:none;border-top:1px solid #eee;margin:25px 0;"/>
     $body_html
-    <div class="footer">
+    <div style="margin-top:40px;padding-top:20px;border-top:1px solid #ddd;color:#7f8c8d;font-size:12px;text-align:center;">
       由 Claude AI 自动生成<br/>
       <small>Powered by RSS + Claude API</small>
     </div>

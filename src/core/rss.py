@@ -57,6 +57,9 @@ def extract_image_url(entry):
 
 _SOURCE_NAME_OVERRIDES = {
     'www.ft.com': 'Financial Times',
+    'feeds.a.dj.com': 'Wall Street Journal',
+    'rss.nytimes.com': 'New York Times',
+    'feeds.bbci.co.uk': 'BBC News',
 }
 
 
