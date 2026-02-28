@@ -27,7 +27,7 @@ Tests are standalone scripts (not pytest). Each is run directly with `uv run`. T
 ```
 src/
   core/                    # shared modules
-    config.py              # RSS_SOURCES, env vars, CATEGORY_EMOJIS, CLAUDE_MAX_RETRIES
+    config.py              # RSS_SOURCES, env vars, CATEGORY_EMOJIS, CATEGORY_ZH_TO_RSS, CLAUDE_MAX_RETRIES
     rss.py                 # extract_image_url(), fetch_rss_articles()
     claude_client.py       # generate_summary_with_claude() — API tool calling / CLI + json_repair
     digest.py              # resolve_references() — maps Claude JSON refs to full article data
@@ -46,7 +46,7 @@ Both pipelines share `src/core/`. Test scripts add `src/` to `sys.path` and impo
 
 **Pipeline flow:**
 1. `fetch_rss_articles()` — fetches RSS, filters to last 24h (UTC), extracts images via `extract_image_url()`
-2. `generate_summary_with_claude()` — loads prompt from `prompts/email_digest.md`, calls Claude (API: tool calling for guaranteed valid JSON; CLI: text output with `json_repair` fallback), returns structured JSON with article refs (e.g. `"Tech & AI:3"`) to minimize output tokens
+2. `generate_summary_with_claude()` — loads prompt from `prompts/email_digest.md`, calls Claude (API: tool calling for guaranteed valid JSON; CLI: text output with `json_repair` fallback), returns structured JSON with number-only article refs (e.g. `"3"`) to minimize output tokens
 3. `resolve_references()` — maps Claude's JSON refs back to full RSS article data (URL, image, source, etc.)
 4. `build_email_html_from_json()` — renders resolved sections using `templates/email.html` and stdlib `html.escape()` (XSS-safe)
 5. `send_email_gmail()` — delivers via Gmail SMTP with App Password
@@ -59,8 +59,9 @@ Image extraction tries multiple strategies in order: `media_content` → `media_
 
 Required in `.env` for local dev (loaded via `python-dotenv` in `config.py`):
 - `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` — email pipeline
-- `OPENCLAW_CONFIG`, `CLAUDE_MODEL`, `TELEGRAM_CHAT_ID` — telegram pipeline
-- `CLAUDE_MODEL` is shared by both pipelines
+- `OPENCLAW_CONFIG`, `CLAUDE_MODEL`, `CLAUDE_CLI_MODEL`, `TELEGRAM_CHAT_ID` — telegram pipeline
+- `CLAUDE_MODEL` — API model ID (e.g. `claude-haiku-4-5-20251001`), shared by both pipelines
+- `CLAUDE_CLI_MODEL` — CLI model alias (e.g. `haiku`), used by CLI backend
 - `CLAUDE_BACKEND=cli` — use Claude CLI subprocess instead of API (for local dev with subscription)
 - `MODE=TEST` — optional; limits test scripts to 1 article per category (faster, fewer tokens)
 

@@ -1,9 +1,11 @@
-from core.config import CATEGORY_EMOJIS
+from core.config import CATEGORY_EMOJIS, CATEGORY_ZH_TO_RSS
 
 
 def resolve_references(parsed_json, all_articles):
     """
     Resolve ref fields in Claude's JSON output to full article data.
+
+    Refs are number-only (e.g. "3"), resolved against the section's category.
 
     Args:
         parsed_json: Parsed JSON dict from Claude (with "sections" key)
@@ -16,22 +18,26 @@ def resolve_references(parsed_json, all_articles):
     for section in parsed_json.get('sections', []):
         category = section.get('category', '')
         emoji = CATEGORY_EMOJIS.get(category, '')
+        rss_key = CATEGORY_ZH_TO_RSS.get(category, '')
+
+        if not rss_key:
+            print(f"⚠️ Unknown category: {category}")
+            continue
+
+        cat_articles = all_articles.get(rss_key, [])
         resolved_items = []
 
         for item in section.get('items', []):
             ref = item.get('ref', '')
-            if ':' not in ref:
-                print(f"⚠️ Invalid ref format: {ref}")
-                continue
-            cat_key, idx_str = ref.rsplit(':', 1)
+            # Support both number-only ("3") and legacy "Category:3" format
+            idx_str = ref.rsplit(':', 1)[-1] if ':' in ref else ref
             try:
                 idx = int(idx_str)
             except ValueError:
-                print(f"⚠️ Invalid ref index: {ref}")
+                print(f"⚠️ Invalid ref: {ref} in {category}")
                 continue
-            cat_articles = all_articles.get(cat_key, [])
             if idx < 1 or idx > len(cat_articles):
-                print(f"⚠️ Ref out of range: {ref} (have {len(cat_articles)} articles)")
+                print(f"⚠️ Ref {ref} out of range in {category} (have {len(cat_articles)} articles)")
                 continue
 
             original = cat_articles[idx - 1]
@@ -50,6 +56,7 @@ def resolve_references(parsed_json, all_articles):
                     resolved[field] = item[field]
             resolved_items.append(resolved)
 
-        sections.append({'category': category, 'emoji': emoji, 'items': resolved_items})
+        is_deals = rss_key == 'Deals'
+        sections.append({'category': category, 'emoji': emoji, 'is_deals': is_deals, 'items': resolved_items})
 
     return sections

@@ -22,7 +22,7 @@ Two parallel pipelines fetching from the same RSS sources:
 ```
 src/
   core/                    # shared modules (imported as core.*)
-    config.py              # RSS_SOURCES, env vars, CATEGORY_EMOJIS, CLAUDE_MAX_RETRIES
+    config.py              # RSS_SOURCES, env vars, CATEGORY_EMOJIS, CATEGORY_ZH_TO_RSS, CLAUDE_MAX_RETRIES
     rss.py                 # extract_image_url, fetch_rss_articles
     claude_client.py       # generate_summary_with_claude (API tool calling / CLI + json_repair)
     digest.py              # resolve_references (Claude JSON refs → full article data)
@@ -56,10 +56,10 @@ pyproject.toml             # uv dependencies
 
 | Module | Key functions |
 |---|---|
-| `core/config.py` | `RSS_SOURCES` dict, all env var constants, `CATEGORY_EMOJIS`, `CLAUDE_MAX_RETRIES` |
+| `core/config.py` | `RSS_SOURCES` dict, all env var constants, `CATEGORY_EMOJIS`, `CATEGORY_ZH_TO_RSS`, `CLAUDE_MAX_RETRIES` |
 | `core/rss.py` | `extract_image_url(entry)` — tries media_content → media_thumbnail → HTML img parse; `fetch_rss_articles(category, feeds, hours=24)` — fetches RSS, filters to last 24h |
 | `core/claude_client.py` | `generate_summary_with_claude(all_articles)` — loads prompt from `prompts/email_digest.md`; API path uses tool calling (guaranteed valid JSON); CLI path uses text output with `json_repair` fallback and up to `CLAUDE_MAX_RETRIES` attempts |
-| `core/digest.py` | `resolve_references(parsed_json, all_articles)` — maps Claude's `"Category:N"` refs to full article dicts |
+| `core/digest.py` | `resolve_references(parsed_json, all_articles)` — maps Claude's number-only refs (e.g. `"3"`) to full article dicts using section category context |
 | `core/renderer.py` | `build_email_html_from_json(sections)` — renders section data into full HTML document using `templates/email.html` |
 | `core/mailer.py` | `send_email_gmail(subject, body_html, recipients)` — Gmail SMTP with App Password |
 
@@ -97,7 +97,8 @@ OPENCLAW_CONFIG=         # absolute path to openclaw.json
 TELEGRAM_CHAT_ID=        # Telegram chat/channel ID
 
 # Shared
-CLAUDE_MODEL=            # required, e.g. claude-haiku-4-5-20251001
+CLAUDE_MODEL=            # required, API model ID, e.g. claude-haiku-4-5-20251001
+CLAUDE_CLI_MODEL=        # optional, CLI model alias, e.g. haiku (defaults to haiku)
 CLAUDE_BACKEND=cli       # optional; use Claude CLI subprocess instead of API
 
 # Local dev / testing

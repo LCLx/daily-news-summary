@@ -8,7 +8,7 @@ from pathlib import Path
 from anthropic import Anthropic
 from json_repair import repair_json
 
-from core.config import ANTHROPIC_API_KEY, CLAUDE_MODEL, CLAUDE_MAX_TOKENS, CLAUDE_MAX_RETRIES
+from core.config import ANTHROPIC_API_KEY, CLAUDE_MODEL, CLAUDE_CLI_MODEL, CLAUDE_MAX_TOKENS, CLAUDE_MAX_RETRIES
 
 _PROMPT_PATH = Path(__file__).parent.parent / 'prompts' / 'email_digest.md'
 
@@ -18,10 +18,10 @@ _CLI_FORMAT_INSTRUCTIONS = """输出一个 JSON 对象，不要任何其他内�
 **JSON 格式：**
 {"sections": [
   {"category": "科技与AI", "items": [
-    {"ref": "Tech & AI:3", "title_zh": "中文标题", "summary_zh": "100-150字中文摘要"}
+    {"ref": "3", "title_zh": "中文标题", "summary_zh": "100-150字中文摘要"}
   ]},
   {"category": "今日优惠", "items": [
-    {"ref": "Deals:5", "title_zh": "中文商品名", "summary_zh": "一句话介绍", "price": "$XX.XX", "original_price": "$YY", "discount": "XX%", "store": "Amazon"}
+    {"ref": "5", "title_zh": "中文商品名", "summary_zh": "一句话介绍", "price": "$XX.XX", "original_price": "$YY", "discount": "XX%", "store": "Amazon"}
   ]}
 ]}
 
@@ -39,13 +39,16 @@ _DIGEST_TOOL = {
                 "items": {
                     "type": "object",
                     "properties": {
-                        "category": {"type": "string"},
+                        "category": {
+                            "type": "string",
+                            "enum": ["科技与AI", "国际政治", "经济与商业", "太平洋西北地区", "健康与科学", "今日优惠"],
+                        },
                         "items": {
                             "type": "array",
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "ref": {"type": "string"},
+                                    "ref": {"type": "string", "description": "Article number from the input, e.g. \"3\""},
                                     "title_zh": {"type": "string"},
                                     "summary_zh": {"type": "string"},
                                     "price": {"type": "string"},
@@ -124,10 +127,11 @@ def _call_cli(prompt):
     """Call Claude CLI with up to CLAUDE_MAX_RETRIES attempts; json_repair as fallback each time."""
     claude_bin = shutil.which('claude') or 'claude'
     env = {k: v for k, v in os.environ.items() if k != 'CLAUDECODE'}
+    env['MAX_THINKING_TOKENS'] = '0'
 
     def call():
         result = subprocess.run(
-            [claude_bin, '--model', CLAUDE_MODEL, '--print', prompt],
+            [claude_bin, '--model', CLAUDE_CLI_MODEL, '--print', prompt],
             capture_output=True, text=True, stdin=subprocess.DEVNULL, env=env,
         )
         if result.returncode != 0 or not result.stdout.strip():

@@ -45,7 +45,7 @@ def _render_body(sections):
     for section in sections:
         category = section['category']
         emoji = section.get('emoji', '')
-        is_deals = category == '今日优惠'
+        is_deals = section.get('is_deals', False)
 
         parts.append(f'<h2 style="{_H2_STYLE}">{emoji} {html.escape(category)}</h2>')
         if is_deals:

@@ -1,3 +1,4 @@
+import html
 import re
 import socket
 from datetime import datetime, timedelta, timezone
@@ -117,7 +118,7 @@ def fetch_rss_articles(category, feeds, hours=24, max_per_feed=4):
                 if pub_date >= cutoff_time:
                     feed_article_count += 1
                     articles.append({
-                        'title': entry.title,
+                        'title': html.unescape(entry.title),
                         'link': entry.link,
                         'pub_date': pub_date,
                         'published': pub_date.strftime('%Y-%m-%d %H:%M'),

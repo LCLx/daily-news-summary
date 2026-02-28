@@ -40,7 +40,8 @@ RSS_SOURCES = {
 
 # Claude model
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
-CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL', 'claude-haiku-4-5-20251001')
+CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL', 'claude-haiku-4-5-20251001')       # API model ID
+CLAUDE_CLI_MODEL = os.environ.get('CLAUDE_CLI_MODEL', 'haiku')                    # CLI alias
 CLAUDE_MAX_TOKENS = 8000
 CLAUDE_MAX_RETRIES = 2
 
@@ -53,4 +54,10 @@ EMAIL_TO = os.environ.get('EMAIL_TO')
 CATEGORY_EMOJIS = {
     '科技与AI': '💻', '国际政治': '🌍', '经济与商业': '💰',
     '太平洋西北地区': '🌲', '健康与科学': '🔬', '今日优惠': '🛍️',
+}
+
+# Chinese category name → English RSS key (used by digest.py to resolve number-only refs)
+CATEGORY_ZH_TO_RSS = {
+    '科技与AI': 'Tech & AI', '国际政治': 'Global Affairs', '经济与商业': 'Business & Finance',
+    '太平洋西北地区': 'Pacific Northwest', '健康与科学': 'Health & Science', '今日优惠': 'Deals',
 }
