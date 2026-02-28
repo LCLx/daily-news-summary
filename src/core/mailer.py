@@ -25,7 +25,7 @@ def send_email_gmail(subject, body_html, recipients):
     msg.attach(MIMEText(body_html, 'html'))
 
     try:
-        print(f"Sending email via Gmail to {', '.join(recipients)}...")
+        print(f"Sending email via Gmail to {len(recipients)} recipient(s)...")
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
             server.sendmail(GMAIL_USER, recipients, msg.as_string())
