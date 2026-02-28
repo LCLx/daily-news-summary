@@ -5,7 +5,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from anthropic import Anthropic
+from anthropic import Anthropic, APIStatusError
 from json_repair import repair_json
 
 from core.config import ANTHROPIC_API_KEY, CLAUDE_MODEL, CLAUDE_CLI_MODEL, CLAUDE_MAX_TOKENS, CLAUDE_MAX_RETRIES
@@ -119,10 +119,15 @@ def _call_api(prompt):
     for attempt in range(1, CLAUDE_MAX_RETRIES + 1):
         try:
             return call()
+        except APIStatusError as e:
+            last_err = e
+            print(f"⚠️ API attempt {attempt}/{CLAUDE_MAX_RETRIES} failed — "
+                  f"HTTP {e.status_code} | {type(e).__name__}: {e.message}"
+                  f"{f' | request_id: {e.request_id}' if e.request_id else ''}")
         except Exception as e:
             last_err = e
-            if attempt < CLAUDE_MAX_RETRIES:
-                print(f"⚠️ API attempt {attempt} failed ({e}), retrying...")
+            print(f"⚠️ API attempt {attempt}/{CLAUDE_MAX_RETRIES} failed — "
+                  f"{type(e).__name__}: {e}")
     raise RuntimeError(f"Claude API failed after {CLAUDE_MAX_RETRIES} attempts: {last_err}") from last_err
 
 
