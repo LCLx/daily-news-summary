@@ -94,7 +94,7 @@ def generate_summary_with_claude(all_articles):
         print("Calling Claude CLI to generate digest...")
         return _call_cli(prompt)
     else:
-        print("Calling Claude API to generate digest...")
+        print(f"Calling Claude API to generate digest... (model: {CLAUDE_MODEL})")
         return _call_api(prompt)
 
 
