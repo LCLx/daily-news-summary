@@ -115,12 +115,15 @@ def _call_api(prompt):
                 return json.dumps(block.input, ensure_ascii=False)
         raise RuntimeError("Claude API did not call the expected tool")
 
-    # Retry once on unexpected failure (network, etc.)
-    try:
-        return call()
-    except RuntimeError:
-        print("⚠️ API tool call failed, retrying...")
-        return call()
+    last_err = None
+    for attempt in range(1, CLAUDE_MAX_RETRIES + 1):
+        try:
+            return call()
+        except Exception as e:
+            last_err = e
+            if attempt < CLAUDE_MAX_RETRIES:
+                print(f"⚠️ API attempt {attempt} failed ({e}), retrying...")
+    raise RuntimeError(f"Claude API failed after {CLAUDE_MAX_RETRIES} attempts: {last_err}") from last_err
 
 
 def _call_cli(prompt):

@@ -40,7 +40,7 @@ RSS_SOURCES = {
 
 # Claude model
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
-CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL', 'claude-haiku-4-5-20251001')       # API model ID
+CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL') or 'claude-haiku-4-5-20251001'      # API model ID
 CLAUDE_CLI_MODEL = os.environ.get('CLAUDE_CLI_MODEL', 'haiku')                    # CLI alias
 CLAUDE_MAX_TOKENS = 8000
 CLAUDE_MAX_RETRIES = 2
