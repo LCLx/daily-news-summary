@@ -34,7 +34,15 @@ def resolve_references(parsed_json, all_articles):
         cat_articles = all_articles.get(rss_key, [])
         resolved_items = []
 
-        for item in section.get('items', []):
+        raw_items = section.get('items', [])
+        if not isinstance(raw_items, list):
+            print(f"⚠️ Unexpected items type in {category}: {type(raw_items).__name__}")
+            continue
+
+        for item in raw_items:
+            if not isinstance(item, dict):
+                print(f"⚠️ Skipping non-dict item in {category}: {item!r}")
+                continue
             ref = item.get('ref', '')
             # Support both number-only ("3") and legacy "Category:3" format
             idx_str = ref.rsplit(':', 1)[-1] if ':' in ref else ref
