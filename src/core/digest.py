@@ -15,7 +15,14 @@ def resolve_references(parsed_json, all_articles):
         list of section dicts with full article data attached
     """
     sections = []
-    for section in parsed_json.get('sections', []):
+    raw_sections = parsed_json.get('sections', [])
+    # Guard against Claude returning sections as a dict (keys become strings when iterated)
+    if isinstance(raw_sections, dict):
+        raw_sections = list(raw_sections.values())
+    for section in raw_sections:
+        if not isinstance(section, dict):
+            print(f"⚠️ Skipping unexpected section type ({type(section).__name__}): {section!r}")
+            continue
         category = section.get('category', '')
         emoji = CATEGORY_EMOJIS.get(category, '')
         rss_key = CATEGORY_ZH_TO_RSS.get(category, '')
