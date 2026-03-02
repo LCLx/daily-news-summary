@@ -98,6 +98,20 @@ def generate_summary_with_claude(all_articles):
         return _call_api(prompt)
 
 
+def _validate_digest_structure(data):
+    """Validate parsed JSON has the expected sections structure. Raises ValueError with raw data if not."""
+    sections = data.get('sections') if isinstance(data, dict) else None
+    if not isinstance(sections, list):
+        print(f"⚠️ Malformed response (sections is {type(sections).__name__}): "
+              f"{json.dumps(data, ensure_ascii=False)}")
+        raise ValueError(f"sections must be a list, got {type(sections).__name__}")
+    for i, section in enumerate(sections):
+        if not isinstance(section, dict):
+            print(f"⚠️ Malformed response (section[{i}] is {type(section).__name__}): "
+                  f"{json.dumps(data, ensure_ascii=False)}")
+            raise ValueError(f"section[{i}] must be a dict, got {type(section).__name__}: {section!r}")
+
+
 def _call_api(prompt):
     """Use Anthropic tool calling to guarantee valid JSON output."""
     client = Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -112,7 +126,9 @@ def _call_api(prompt):
         )
         for block in message.content:
             if block.type == "tool_use":
-                return json.dumps(block.input, ensure_ascii=False)
+                data = block.input
+                _validate_digest_structure(data)
+                return json.dumps(data, ensure_ascii=False)
         raise RuntimeError("Claude API did not call the expected tool")
 
     last_err = None
@@ -148,13 +164,14 @@ def _call_cli(prompt):
             )
         text = _strip_fences(result.stdout.strip())
         try:
-            json.loads(text)
-            return text
+            data = json.loads(text)
         except json.JSONDecodeError:
             repaired = repair_json(text, ensure_ascii=False)
-            json.loads(repaired)  # raises if still invalid
+            data = json.loads(repaired)  # raises if still invalid
+            text = repaired
             print("✅ JSON repaired")
-            return repaired
+        _validate_digest_structure(data)
+        return text
 
     last_err = None
     for attempt in range(1, CLAUDE_MAX_RETRIES + 1):

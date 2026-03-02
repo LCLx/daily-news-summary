@@ -15,14 +15,7 @@ def resolve_references(parsed_json, all_articles):
         list of section dicts with full article data attached
     """
     sections = []
-    raw_sections = parsed_json.get('sections', [])
-    # Guard against Claude returning sections as a dict (keys become strings when iterated)
-    if isinstance(raw_sections, dict):
-        raw_sections = list(raw_sections.values())
-    for section in raw_sections:
-        if not isinstance(section, dict):
-            print(f"⚠️ Skipping unexpected section type ({type(section).__name__}): {section!r}")
-            continue
+    for section in parsed_json.get('sections', []):
         category = section.get('category', '')
         emoji = CATEGORY_EMOJIS.get(category, '')
         rss_key = CATEGORY_ZH_TO_RSS.get(category, '')
@@ -34,15 +27,7 @@ def resolve_references(parsed_json, all_articles):
         cat_articles = all_articles.get(rss_key, [])
         resolved_items = []
 
-        raw_items = section.get('items', [])
-        if not isinstance(raw_items, list):
-            print(f"⚠️ Unexpected items type in {category}: {type(raw_items).__name__}")
-            continue
-
-        for item in raw_items:
-            if not isinstance(item, dict):
-                print(f"⚠️ Skipping non-dict item in {category}: {item!r}")
-                continue
+        for item in section.get('items', []):
             ref = item.get('ref', '')
             # Support both number-only ("3") and legacy "Category:3" format
             idx_str = ref.rsplit(':', 1)[-1] if ':' in ref else ref
