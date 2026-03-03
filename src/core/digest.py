@@ -16,6 +16,9 @@ def resolve_references(parsed_json, all_articles):
     """
     sections = []
     for section in parsed_json.get('sections', []):
+        if not isinstance(section, dict):
+            print(f"⚠️ Skipping malformed section (expected dict, got {type(section).__name__}): {section!r:.80}")
+            continue
         category = section.get('category', '')
         emoji = CATEGORY_EMOJIS.get(category, '')
         rss_key = CATEGORY_ZH_TO_RSS.get(category, '')

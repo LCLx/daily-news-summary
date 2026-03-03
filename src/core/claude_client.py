@@ -69,6 +69,23 @@ _DIGEST_TOOL = {
 }
 
 
+def _validate_digest_structure(data):
+    """Validate that Claude's output matches the expected digest schema.
+
+    Raises ValueError if the structure is malformed (triggers retry).
+    """
+    if not isinstance(data, dict) or 'sections' not in data:
+        raise ValueError(f"Expected dict with 'sections' key, got {type(data).__name__}")
+    sections = data['sections']
+    if not isinstance(sections, list):
+        raise ValueError(f"Expected 'sections' to be a list, got {type(sections).__name__}")
+    for i, section in enumerate(sections):
+        if not isinstance(section, dict):
+            raise ValueError(f"sections[{i}] is {type(section).__name__}, expected dict")
+        if 'category' not in section or 'items' not in section:
+            raise ValueError(f"sections[{i}] missing required keys (has: {list(section.keys())})")
+
+
 def generate_summary_with_claude(all_articles):
     """
     Generate a Chinese digest via Claude API or CLI.
@@ -112,7 +129,9 @@ def _call_api(prompt):
         )
         for block in message.content:
             if block.type == "tool_use":
-                return json.dumps(block.input, ensure_ascii=False)
+                result = block.input
+                _validate_digest_structure(result)
+                return json.dumps(result, ensure_ascii=False)
         raise RuntimeError("Claude API did not call the expected tool")
 
     last_err = None

@@ -7,4 +7,9 @@ dependencies = [
     "anthropic>=0.50.0",
     "python-dotenv==1.0.0",
     "json-repair>=0.30.0",
+    "pytest>=8.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]
+pythonpath = ["src"]
