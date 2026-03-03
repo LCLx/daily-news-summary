@@ -69,6 +69,13 @@ _DIGEST_TOOL = {
 }
 
 
+def _normalize_digest(data):
+    """Wrap bare list into {"sections": [...]} if Claude omitted the wrapper."""
+    if isinstance(data, list):
+        return {'sections': data}
+    return data
+
+
 def _validate_digest_structure(data):
     """Validate that Claude's output matches the expected digest schema.
 
@@ -129,7 +136,7 @@ def _call_api(prompt):
         )
         for block in message.content:
             if block.type == "tool_use":
-                result = block.input
+                result = _normalize_digest(block.input)
                 _validate_digest_structure(result)
                 return json.dumps(result, ensure_ascii=False)
         raise RuntimeError("Claude API did not call the expected tool")
@@ -167,13 +174,14 @@ def _call_cli(prompt):
             )
         text = _strip_fences(result.stdout.strip())
         try:
-            json.loads(text)
-            return text
+            parsed = json.loads(text)
         except json.JSONDecodeError:
-            repaired = repair_json(text, ensure_ascii=False)
-            json.loads(repaired)  # raises if still invalid
+            text = repair_json(text, ensure_ascii=False)
+            parsed = json.loads(text)  # raises if still invalid
             print("✅ JSON repaired")
-            return repaired
+        parsed = _normalize_digest(parsed)
+        _validate_digest_structure(parsed)
+        return json.dumps(parsed, ensure_ascii=False)
 
     last_err = None
     for attempt in range(1, CLAUDE_MAX_RETRIES + 1):

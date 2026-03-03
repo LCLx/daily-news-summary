@@ -1,5 +1,5 @@
 import pytest
-from core.claude_client import _validate_digest_structure
+from core.claude_client import _validate_digest_structure, _normalize_digest
 
 
 class TestValidateDigestStructure:
@@ -38,3 +38,18 @@ class TestValidateDigestStructure:
     def test_section_missing_items(self):
         with pytest.raises(ValueError, match='missing required keys'):
             _validate_digest_structure({'sections': [{'category': '科技与AI'}]})
+
+
+class TestNormalizeDigest:
+    def test_bare_list_wrapped(self):
+        """CLI sometimes returns a bare array instead of {"sections": [...]}."""
+        data = [{'category': '科技与AI', 'items': []}]
+        result = _normalize_digest(data)
+        assert result == {'sections': [{'category': '科技与AI', 'items': []}]}
+
+    def test_dict_unchanged(self):
+        data = {'sections': [{'category': '科技与AI', 'items': []}]}
+        assert _normalize_digest(data) is data
+
+    def test_empty_list_wrapped(self):
+        assert _normalize_digest([]) == {'sections': []}
