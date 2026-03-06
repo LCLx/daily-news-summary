@@ -18,17 +18,17 @@ def send_email_gmail(subject, body_html, recipients):
         print("⚠️ GMAIL_USER or GMAIL_APP_PASSWORD not set, skipping email")
         return
 
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = subject
-    msg['From'] = GMAIL_USER
-    msg['To'] = 'undisclosed-recipients:;'
-    msg.attach(MIMEText(body_html, 'html'))
-
     try:
         print(f"Sending email via Gmail to {len(recipients)} recipient(s)...")
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-            server.sendmail(GMAIL_USER, recipients, msg.as_string())
+            for recipient in recipients:
+                msg = MIMEMultipart('alternative')
+                msg['Subject'] = subject
+                msg['From'] = GMAIL_USER
+                msg['To'] = recipient
+                msg.attach(MIMEText(body_html, 'html'))
+                server.sendmail(GMAIL_USER, [recipient], msg.as_string())
         print("✅ Email sent.")
     except Exception as e:
         print(f"❌ Failed to send email: {e}")
