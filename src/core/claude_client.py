@@ -70,9 +70,11 @@ _DIGEST_TOOL = {
 
 
 def _normalize_digest(data):
-    """Wrap bare list into {"sections": [...]} if Claude omitted the wrapper."""
+    """Normalize Claude output: wrap bare list, parse stringified sections."""
     if isinstance(data, list):
         return {'sections': data}
+    if isinstance(data, dict) and isinstance(data.get('sections'), str):
+        data['sections'] = json.loads(data['sections'])
     return data
 
 
