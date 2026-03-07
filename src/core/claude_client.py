@@ -120,7 +120,7 @@ def _call_api(prompt):
 def _call_cli(prompt):
     """Call Claude CLI with up to CLAUDE_MAX_RETRIES attempts; json_repair as fallback each time."""
     claude_bin = shutil.which('claude') or 'claude'
-    env = {k: v for k, v in os.environ.items() if k != 'CLAUDECODE'}
+    env = {k: v for k, v in os.environ.items() if k not in ('CLAUDECODE', 'ANTHROPIC_API_KEY')}
     env['MAX_THINKING_TOKENS'] = '0'
 
     def call():
