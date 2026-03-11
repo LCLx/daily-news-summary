@@ -2,8 +2,8 @@ name: Daily News Summary
 
 on:
   schedule:
-    # Daily at 08:00 PST (UTC 16:00); shifts to 09:00 during PDT
-    - cron: '0 16 * * *'
+    # Daily at 07:00 PST (UTC 15:00); shifts to 08:00 during PDT
+    - cron: '0 15 * * *'
   workflow_dispatch:  # Allow manual trigger
 
 jobs:
