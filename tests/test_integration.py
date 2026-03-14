@@ -15,7 +15,7 @@ from core.rss import fetch_rss_articles
 from core.claude_client import generate_summary_with_claude
 from core.digest import resolve_references
 from core.renderer import build_email_html_from_json
-from core.mailer import send_email_gmail
+from core.mailer import send_email_gmail, delete_sent_emails
 from datetime import datetime
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'generated')
@@ -77,7 +77,8 @@ def run():
     else:
         recipients = [e.strip() for e in EMAIL_TO.split(',')]
         subject = f"📰 每日新闻摘要 - {datetime.now().strftime('%Y年%m月%d日')}"
-        send_email_gmail(subject, html, recipients)
+        msg_ids = send_email_gmail(subject, html, recipients)
+        delete_sent_emails(msg_ids)
 
     print("\n" + "=" * 60)
     print("✅ Integration test complete")
