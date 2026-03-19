@@ -38,6 +38,9 @@ RSS_SOURCES = {
     ],
 }
 
+# Deals blocklist: drop articles matching these keywords (case-insensitive) in the Deals category
+DEALS_BLOCKED_KEYWORDS = ['home depot']
+
 # Claude model
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL') or 'claude-haiku-4-5-20251001'      # API model ID

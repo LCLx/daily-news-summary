@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project overview
 
 Two parallel pipelines, both fetching from the same RSS sources (`RSS_SOURCES` in `src/core/config.py`):
-- **Email pipeline** (`src/pipelines/email_pipeline.py`): RSS → Claude API → HTML email via Gmail SMTP. Runs on GitHub Actions daily at 08:00 PST (UTC 16:00).
+- **Email pipeline** (`src/pipelines/email_pipeline.py`): RSS + gas prices → Claude API → HTML email via Gmail SMTP. Runs on GitHub Actions daily at 08:00 PST (UTC 16:00).
 - **Telegram pipeline** (`src/pipelines/telegram_pipeline.py`): RSS → Claude CLI (subscription, not API) → Telegram message.
 
 ## Commands
@@ -15,26 +15,27 @@ uv sync                                        # install dependencies
 uv run src/pipelines/email_pipeline.py         # email pipeline: fetch → summarize → email
 uv run src/pipelines/telegram_pipeline.py      # telegram pipeline: fetch → summarize → telegram
 uv run tests/test_rss.py                       # check RSS feed reachability + article counts
-uv run tests/test_claude.py                    # Claude pipeline test, saves generated/preview.html (no email)
+uv run tests/test_claude.py                    # generate digest + save preview (no email)
 uv run tests/test_email.py                     # send last generated preview via Gmail (run test_claude.py first)
-uv run tests/test_integration.py               # end-to-end: RSS → Claude → email
+uv run tests/test_integration.py               # end-to-end: full pipeline including email
 ```
 
-Tests are standalone scripts (not pytest). Each is run directly with `uv run`. Test scripts import from `src/` via `sys.path.insert`. The `generated/` directory is gitignored and holds `preview.html` and `preview.json` output.
+Tests are standalone scripts (not pytest). Each is run directly with `uv run`. `test_claude.py` and `test_integration.py` import from `email_pipeline` directly (`generate_digest`, `save_preview`, `main`). The `generated/` directory is gitignored and holds `preview.html` and `preview.json` output.
 
 ## Architecture
 
 ```
 src/
   core/                    # shared modules
-    config.py              # RSS_SOURCES, env vars, CATEGORY_EMOJIS, CATEGORY_ZH_TO_RSS, CLAUDE_MAX_RETRIES
-    rss.py                 # extract_image_url(), fetch_rss_articles()
+    config.py              # RSS_SOURCES, DEALS_BLOCKED_KEYWORDS, env vars, CATEGORY_EMOJIS, CATEGORY_ZH_TO_RSS, CLAUDE_MAX_RETRIES
+    rss.py                 # extract_image_url(), fetch_rss_articles() — Deals category applies DEALS_BLOCKED_KEYWORDS filter
     claude_client.py       # generate_summary_with_claude() — API tool calling / CLI + json_repair
     digest.py              # resolve_references() — maps Claude JSON refs to full article data
     renderer.py            # build_email_html_from_json() — renders sections to HTML
+    gas_prices.py          # fetch_all_gas_prices() — Vancouver (gaswizard.ca) + Seattle (AAA)
     mailer.py              # send_email_gmail() — Gmail SMTP delivery
   pipelines/               # entry points
-    email_pipeline.py      # main() — orchestrates the email pipeline
+    email_pipeline.py      # generate_digest() → save_preview() → send_email(); main() runs all three
     telegram_pipeline.py   # telegram pipeline
   prompts/
     email_digest.md        # Claude prompt template ($articles placeholder)
@@ -45,11 +46,12 @@ src/
 Both pipelines share `src/core/`. Test scripts add `src/` to `sys.path` and import via `core.*`.
 
 **Pipeline flow:**
-1. `fetch_rss_articles()` — fetches RSS, filters to last 24h (UTC), extracts images via `extract_image_url()`
-2. `generate_summary_with_claude()` — loads prompt from `prompts/email_digest.md`, calls Claude (API: tool calling for guaranteed valid JSON; CLI: text output with `json_repair` fallback), returns structured JSON with number-only article refs (e.g. `"3"`) to minimize output tokens
-3. `resolve_references()` — maps Claude's JSON refs back to full RSS article data (URL, image, source, etc.)
-4. `build_email_html_from_json()` — renders resolved sections using `templates/email.html` and stdlib `html.escape()` (XSS-safe)
-5. `send_email_gmail()` — delivers via Gmail SMTP with App Password
+1. `fetch_rss_articles()` — fetches RSS, filters to last 24h (UTC), extracts images via `extract_image_url()`, drops Deals articles matching `DEALS_BLOCKED_KEYWORDS` (checks title + link + summary, handles both spaces and hyphens)
+2. `fetch_all_gas_prices()` — scrapes Vancouver gas price predictions from gaswizard.ca and Seattle metro current averages from AAA; returns list of city dicts (gracefully skips on failure)
+3. `generate_summary_with_claude()` — loads prompt from `prompts/email_digest.md`, calls Claude (API: tool calling for guaranteed valid JSON; CLI: text output with `json_repair` fallback), returns structured JSON with number-only article refs (e.g. `"3"`) to minimize output tokens
+4. `resolve_references()` — maps Claude's JSON refs back to full RSS article data (URL, image, source, etc.)
+5. `build_email_html_from_json()` — renders resolved sections using `templates/email.html` and stdlib `html.escape()` (XSS-safe); appends gas price cards at the end if available
+6. `send_email_gmail()` — delivers via Gmail SMTP with App Password
 
 RSS sources are defined in `RSS_SOURCES` in `src/core/config.py`, grouped by 6 categories: Tech & AI, Global Affairs, Business & Finance, Pacific Northwest, Health & Science, Deals.
 
@@ -63,7 +65,7 @@ Required in `.env` for local dev (loaded via `python-dotenv` in `config.py`):
 - `CLAUDE_MODEL` — API model ID (e.g. `claude-haiku-4-5-20251001`), shared by both pipelines
 - `CLAUDE_CLI_MODEL` — CLI model alias (e.g. `haiku`), used by CLI backend
 - `CLAUDE_BACKEND=cli` — use Claude CLI subprocess instead of API (for local dev with subscription)
-- `MODE=TEST` — optional; limits test scripts to 1 article per category (faster, fewer tokens)
+- `MODE=TEST` — optional; limits to 1 article per category in pipeline (faster, fewer tokens)
 
 ## Conventions
 

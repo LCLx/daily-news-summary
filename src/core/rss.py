@@ -5,6 +5,8 @@ from datetime import datetime, timedelta, timezone
 
 import feedparser
 
+from core.config import DEALS_BLOCKED_KEYWORDS
+
 
 def extract_image_url(entry):
     """
@@ -116,6 +118,11 @@ def fetch_rss_articles(category, feeds, hours=24, max_per_feed=4):
                     continue
 
                 if pub_date >= cutoff_time:
+                    # Filter blocked keywords in Deals category
+                    if category == 'Deals':
+                        text = f"{entry.title} {entry.link} {entry.get('summary', '')}".lower()
+                        if any(kw in text or kw.replace(' ', '-') in text for kw in DEALS_BLOCKED_KEYWORDS):
+                            continue
                     feed_article_count += 1
                     articles.append({
                         'title': html.unescape(entry.title),
