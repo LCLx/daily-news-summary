@@ -60,7 +60,7 @@ def _fetch_vancouver():
 
     fuel_types = re.findall(r'<div class="fueltitle">(.*?)</div>', first_day)
     fuel_prices = re.findall(
-        r'<div class="fuelprice">([\d.]+)\s*\(<span class="price-direction (pd-up|pd-down)">(.*?)</span>\)',
+        r'<div class="fuelprice">([\d.]+)\s*\(<span class="price-direction (pd-up|pd-down|pd-nc)">(.*?)</span>\)',
         first_day,
     )
 
@@ -68,11 +68,12 @@ def _fetch_vancouver():
     for i, ftype in enumerate(fuel_types):
         if i < len(fuel_prices):
             price, direction, change = fuel_prices[i]
+            dir_map = {'pd-up': 'up', 'pd-down': 'down', 'pd-nc': 'same'}
             fuels.append({
                 'type': ftype,
                 'price': price,
-                'change': change,
-                'direction': 'up' if direction == 'pd-up' else 'down',
+                'change': change if change != 'n/c' else '0¢',
+                'direction': dir_map.get(direction, 'same'),
             })
 
     if not fuels:
