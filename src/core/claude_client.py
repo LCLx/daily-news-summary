@@ -98,7 +98,11 @@ def _call_api(prompt):
             parsed = json.loads(text)
             print("✅ JSON repaired")
         parsed = _normalize_digest(parsed)
-        _validate_digest_structure(parsed)
+        try:
+            _validate_digest_structure(parsed)
+        except ValueError:
+            print(f"⚠️ Raw Claude output (first 500 chars):\n{text[:500]}")
+            raise
         return json.dumps(parsed, ensure_ascii=False)
 
     last_err = None
@@ -140,7 +144,11 @@ def _call_cli(prompt):
             parsed = json.loads(text)  # raises if still invalid
             print("✅ JSON repaired")
         parsed = _normalize_digest(parsed)
-        _validate_digest_structure(parsed)
+        try:
+            _validate_digest_structure(parsed)
+        except ValueError:
+            print(f"⚠️ Raw Claude output (first 500 chars):\n{text[:500]}")
+            raise
         return json.dumps(parsed, ensure_ascii=False)
 
     last_err = None
@@ -173,4 +181,8 @@ def _strip_fences(text):
     if text.startswith('```'):
         text = re.sub(r'^```\w*\n?', '', text)
         text = re.sub(r'\n?```$', '', text)
+    # Strip any preamble before the actual JSON object
+    brace = text.find('{')
+    if brace > 0:
+        text = text[brace:]
     return text
