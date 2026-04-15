@@ -48,10 +48,14 @@ CLAUDE_CLI_MODEL = os.environ.get('CLAUDE_CLI_MODEL', 'haiku')                  
 CLAUDE_MAX_TOKENS = 8000
 CLAUDE_MAX_RETRIES = 2
 
-# Gmail SMTP
+# Gmail API (OAuth2)
 GMAIL_USER = os.environ.get('GMAIL_USER')
-GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
+GMAIL_CLIENT_ID = os.environ.get('GMAIL_CLIENT_ID')
+GMAIL_CLIENT_SECRET = os.environ.get('GMAIL_CLIENT_SECRET')
+GMAIL_REFRESH_TOKEN = os.environ.get('GMAIL_REFRESH_TOKEN')
 EMAIL_TO = os.environ.get('EMAIL_TO')
+# Legacy SMTP (still supported as fallback)
+GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 
 # Chinese category name → emoji fallback (used by digest.py)
 CATEGORY_EMOJIS = {
