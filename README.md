@@ -2,8 +2,8 @@
 
 Two parallel pipelines that fetch from the same RSS feeds and deliver Chinese summaries via different channels:
 
-- **Email pipeline** — Claude CLI → HTML email via Gmail API (OAuth2).
-- **Telegram pipeline** — Claude CLI → Telegram message.
+- **Email pipeline** — Claude API → HTML email via Gmail SMTP. Runs daily on GitHub Actions at 08:00 PST (UTC 16:00).
+- **Telegram pipeline** — Claude CLI (subscription) → Telegram message. Run manually or on schedule.
 
 Both pipelines fetch articles published in the last 24 hours, select the most newsworthy items, and write concise Chinese summaries.
 
@@ -23,9 +23,8 @@ Both pipelines fetch articles published in the last 24 hours, select the most ne
 ### Prerequisites
 
 - [uv](https://docs.astral.sh/uv/)
-- [Claude CLI](https://claude.ai/code) logged in with a Claude subscription
-- Gmail account with OAuth2 credentials (Client ID, Client Secret, Refresh Token)
-- **Telegram pipeline:** a Telegram bot token
+- **Email pipeline:** An [Anthropic API key](https://console.anthropic.com/) + Gmail account with [App Password](https://myaccount.google.com/apppasswords) enabled
+- **Telegram pipeline:** [Claude CLI](https://claude.ai/code) logged in with a Claude subscription + a Telegram bot token
 
 ### Local development
 
@@ -38,18 +37,17 @@ uv sync
 
 # Configure environment — create a .env file:
 # Email pipeline:
+# ANTHROPIC_API_KEY=...
 # GMAIL_USER=your.address@gmail.com
-# GMAIL_CLIENT_ID=...
-# GMAIL_CLIENT_SECRET=...
-# GMAIL_REFRESH_TOKEN=...
+# GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx   (16-char App Password)
 # EMAIL_TO=recipient@example.com
 #
 # Telegram pipeline:
-# TELEGRAM_BOT_TOKEN=your_bot_token
+# OPENCLAW_CONFIG=/path/to/.openclaw/openclaw.json
 # TELEGRAM_CHAT_ID=your_chat_id
 #
 # Shared:
-# CLAUDE_CLI_MODEL=haiku
+# CLAUDE_MODEL=claude-haiku-4-5-20251001
 
 # Run email pipeline
 uv run src/pipelines/email_pipeline.py
@@ -74,6 +72,33 @@ uv run tests/test_email.py
 uv run tests/test_integration.py
 ```
 
+### GitHub Actions
+
+Add the following secrets to your repository under **Settings → Secrets and variables → Actions → Secrets**:
+
+| Secret | Description |
+|---|---|
+| `ANTHROPIC_API_KEY` | Anthropic API key |
+| `GMAIL_USER` | Gmail address used to send |
+| `GMAIL_APP_PASSWORD` | 16-character Gmail App Password |
+| `EMAIL_TO` | Recipient address(es), comma-separated |
+
+**Variables** (Settings → Secrets and variables → Actions → Variables):
+
+| Variable | Description |
+|---|---|
+| `CLAUDE_MODEL` | Claude model ID (see options below, default: `claude-haiku-4-5-20251001`) |
+
+Available models:
+
+| Model | Cost/run | Quality |
+|---|---|---|
+| `claude-haiku-4-5-20251001` | ~$0.01 | Good — fast, cheap |
+| `claude-sonnet-4-5-20250929` | ~$0.10 | Better — recommended for quality |
+| `claude-opus-4-6` | ~$0.50 | Best — highest quality |
+
+The workflow runs automatically on schedule and can also be triggered manually via `workflow_dispatch`.
+
 ## Configuration
 
 | What to change | Where |
@@ -83,14 +108,21 @@ uv run tests/test_integration.py
 | Email layout and CSS | `src/templates/email.html` |
 | Lookback window (default 24h) | `hours` parameter in `fetch_rss_articles()` in `src/core/rss.py` |
 
+## Cost
+
+| Service | Cost |
+|---|---|
+| Claude (Haiku, default) | ~$0.01/run · ~$0.30/month |
+| Gmail SMTP | Free |
+
 ## Stack
 
-- Python 3.12
+- Python 3.11
 - [feedparser](https://feedparser.readthedocs.io/) — RSS parsing
-- [Claude CLI](https://claude.ai/code) — digest generation via `claude -p`
-- [json-repair](https://github.com/mangiucugna/json_repair) — JSON repair fallback
-- Gmail API (OAuth2) — email delivery
-- stdlib `json`/`html` — JSON parsing and XSS-safe HTML rendering
+- [anthropic](https://github.com/anthropics/anthropic-sdk-python) — Claude API client (tool calling for guaranteed valid JSON output)
+- [json-repair](https://github.com/mangiucugna/json_repair) — JSON repair fallback for CLI backend
+- Gmail SMTP (`smtplib`) + stdlib `json`/`html` — email delivery and HTML rendering
+- GitHub Actions — scheduling and execution
 
 ## License
 

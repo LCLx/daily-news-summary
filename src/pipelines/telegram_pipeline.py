@@ -6,8 +6,11 @@ Run: uv run src/telegram_pipeline.py
 import re, json, os, sys, shutil, urllib.request, urllib.error
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
-from core.config import RSS_SOURCES, CLAUDE_CLI_MODEL
+from core.config import RSS_SOURCES
 from core.rss import fetch_rss_articles
+
+OPENCLAW_CONFIG = os.environ['OPENCLAW_CONFIG']
+CLAUDE_MODEL = os.environ['CLAUDE_MODEL']
 
 PROMPT_TEMPLATE = """以下是今日各板块的英文新闻（已按板块分类）：
 
@@ -49,7 +52,7 @@ def generate_summary(articles_text):
     claude_bin = shutil.which('claude') or 'claude'
     prompt = PROMPT_TEMPLATE.format(articles=articles_text)
     result = subprocess.run(
-        [claude_bin, '--model', CLAUDE_CLI_MODEL,
+        [claude_bin, '--model', CLAUDE_MODEL,
          '--system-prompt', 'You are a helpful multilingual assistant. Output only the requested HTML content, no extra commentary.',
          '--print', prompt],
         capture_output=True, text=True, stdin=subprocess.DEVNULL
@@ -97,7 +100,8 @@ def send_to_telegram(text, bot_token, chat_id):
             print(f'Send error: {res}', file=sys.stderr)
 
 def main():
-    bot_token = os.environ['TELEGRAM_BOT_TOKEN']
+    cfg = json.loads(open(OPENCLAW_CONFIG).read())
+    bot_token = cfg['channels']['telegram']['botToken']
     chat_id = os.environ['TELEGRAM_CHAT_ID']
 
     print('Fetching RSS...')

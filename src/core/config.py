@@ -34,14 +34,18 @@ RSS_SOURCES = {
     ],
     'Deals': [
         'https://slickdeals.net/newsearch.php?mode=frontpage&searcharea=deals&searchin=first&rss=1',
+        'https://www.reddit.com/r/deals.rss',
     ],
 }
 
 # Deals blocklist: drop articles matching these keywords (case-insensitive) in the Deals category
 DEALS_BLOCKED_KEYWORDS = ['home depot']
 
-# Claude CLI
-CLAUDE_CLI_MODEL = os.environ.get('CLAUDE_CLI_MODEL', 'haiku')
+# Claude model
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
+CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL') or 'claude-haiku-4-5-20251001'      # API model ID
+CLAUDE_CLI_MODEL = os.environ.get('CLAUDE_CLI_MODEL', 'haiku')                    # CLI alias
+CLAUDE_MAX_TOKENS = 8000
 CLAUDE_MAX_RETRIES = 2
 
 # Gmail API (OAuth2)
@@ -50,6 +54,8 @@ GMAIL_CLIENT_ID = os.environ.get('GMAIL_CLIENT_ID')
 GMAIL_CLIENT_SECRET = os.environ.get('GMAIL_CLIENT_SECRET')
 GMAIL_REFRESH_TOKEN = os.environ.get('GMAIL_REFRESH_TOKEN')
 EMAIL_TO = os.environ.get('EMAIL_TO')
+# Legacy SMTP (still supported as fallback)
+GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
 
 # Chinese category name → emoji fallback (used by digest.py)
 CATEGORY_EMOJIS = {
