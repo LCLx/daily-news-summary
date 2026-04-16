@@ -3,19 +3,18 @@
 ## What this is
 
 Two parallel pipelines fetching from the same RSS sources:
-- **Email pipeline** (`src/pipelines/email_pipeline.py`): RSS → Claude API → HTML email via Gmail. Runs on GitHub Actions daily at 08:00 PST (UTC 16:00).
-- **Telegram pipeline** (`src/pipelines/telegram_pipeline.py`): RSS → Claude CLI (subscription, not API) → Telegram message.
+- **Email pipeline** (`src/pipelines/email_pipeline.py`): RSS → Claude CLI → HTML email via Gmail API (OAuth2).
+- **Telegram pipeline** (`src/pipelines/telegram_pipeline.py`): RSS → Claude CLI → Telegram message.
 
 ## Stack
 
-- Python 3.11, managed with **uv** (`uv sync`, `uv run`)
+- Python 3.12, managed with **uv** (`uv sync`, `uv run`)
 - `feedparser` — RSS parsing
-- `anthropic` — Claude API; uses tool calling to guarantee valid JSON output
-- `json-repair` — JSON repair fallback for CLI backend
+- `claude` CLI — digest generation via `claude -p` subprocess
+- `json-repair` — JSON repair fallback for Claude output
 - `python-dotenv` — loads `.env` for local dev (loaded in `core/config.py`)
 - stdlib `json` + `html` — parse Claude's JSON output and render XSS-safe HTML (no `markdown` dependency)
-- Gmail SMTP (`smtplib`) — email delivery (stdlib, no extra dependency)
-- GitHub Actions — scheduling
+- Gmail API (OAuth2, `requests`) — email delivery
 
 ## Project structure
 
@@ -24,10 +23,10 @@ src/
   core/                    # shared modules (imported as core.*)
     config.py              # RSS_SOURCES, env vars, CATEGORY_EMOJIS, CATEGORY_ZH_TO_RSS, CLAUDE_MAX_RETRIES
     rss.py                 # extract_image_url, fetch_rss_articles
-    claude_client.py       # generate_summary_with_claude (API tool calling / CLI + json_repair)
+    claude_client.py       # generate_summary_with_claude (Claude CLI + json_repair)
     digest.py              # resolve_references (Claude JSON refs → full article data)
     renderer.py            # build_email_html_from_json (renders sections to HTML)
-    mailer.py              # send_email_gmail
+    mailer.py              # send_email_gmail (Gmail API / OAuth2)
   pipelines/               # entry points
     email_pipeline.py      # main() — orchestrates the email pipeline
     telegram_pipeline.py   # telegram pipeline
@@ -48,8 +47,6 @@ generated/                 # gitignored output directory
   preview.json             # raw Claude JSON output for debugging
 pyproject.toml             # uv dependencies
 .env                       # local secrets (gitignored)
-.github/workflows/
-  daily_news.yml           # CI: astral-sh/setup-uv + uv sync + uv run src/pipelines/email_pipeline.py
 ```
 
 ## Module responsibilities
@@ -58,10 +55,10 @@ pyproject.toml             # uv dependencies
 |---|---|
 | `core/config.py` | `RSS_SOURCES` dict, all env var constants, `CATEGORY_EMOJIS`, `CATEGORY_ZH_TO_RSS`, `CLAUDE_MAX_RETRIES` |
 | `core/rss.py` | `extract_image_url(entry)` — tries media_content → media_thumbnail → HTML img parse; `fetch_rss_articles(category, feeds, hours=24)` — fetches RSS, filters to last 24h |
-| `core/claude_client.py` | `generate_summary_with_claude(all_articles)` — loads prompt from `prompts/email_digest.md`; API path uses tool calling (guaranteed valid JSON); CLI path uses text output with `json_repair` fallback and up to `CLAUDE_MAX_RETRIES` attempts |
+| `core/claude_client.py` | `generate_summary_with_claude(all_articles)` — loads prompt from `prompts/email_digest.md`; calls Claude CLI (`claude -p`) with `json_repair` fallback and up to `CLAUDE_MAX_RETRIES` attempts |
 | `core/digest.py` | `resolve_references(parsed_json, all_articles)` — maps Claude's number-only refs (e.g. `"3"`) to full article dicts using section category context |
 | `core/renderer.py` | `build_email_html_from_json(sections)` — renders section data into full HTML document using `templates/email.html` |
-| `core/mailer.py` | `send_email_gmail(subject, body_html, recipients)` — Gmail SMTP with App Password |
+| `core/mailer.py` | `send_email_gmail(subject, body_html, recipients)` — Gmail API (OAuth2) |
 
 ## RSS sources
 
@@ -87,25 +84,22 @@ Note: Reuters official RSS is dead. Using Google News RSS proxy:
 
 ```
 # Email pipeline
-ANTHROPIC_API_KEY=
 GMAIL_USER=              # sender Gmail address
-GMAIL_APP_PASSWORD=      # 16-char Gmail App Password
+GMAIL_CLIENT_ID=         # Google OAuth2 Client ID
+GMAIL_CLIENT_SECRET=     # Google OAuth2 Client Secret
+GMAIL_REFRESH_TOKEN=     # Google OAuth2 Refresh Token
 EMAIL_TO=                # comma-separated recipients
 
 # Telegram pipeline
-OPENCLAW_CONFIG=         # absolute path to openclaw.json
+TELEGRAM_BOT_TOKEN=      # Telegram bot token from @BotFather
 TELEGRAM_CHAT_ID=        # Telegram chat/channel ID
 
 # Shared
-CLAUDE_MODEL=            # required, API model ID, e.g. claude-haiku-4-5-20251001
 CLAUDE_CLI_MODEL=        # optional, CLI model alias, e.g. haiku (defaults to haiku)
-CLAUDE_BACKEND=cli       # optional; use Claude CLI subprocess instead of API
 
 # Local dev / testing
 MODE=TEST                # optional; limits test scripts to 1 article per category (faster, fewer tokens)
 ```
-
-GitHub Actions (email pipeline): `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` as Secrets; `CLAUDE_MODEL` as Variable.
 
 ## Local dev workflow
 
@@ -120,9 +114,4 @@ uv run src/pipelines/email_pipeline.py       # full run including email
 
 ## Cost (approximate)
 
-| Model | Per run | Per month (1×/day) |
-|---|---|---|
-| Haiku 4.5 | ~$0.014 | ~$0.42 |
-| Sonnet 4.5 | ~$0.053 | ~$1.60 |
-
-Current model: Haiku (user testing quality vs Sonnet).
+Uses Claude CLI with subscription — no per-token API cost. Gmail API is free.

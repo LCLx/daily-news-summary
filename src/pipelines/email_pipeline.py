@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Daily news digest: RSS → Claude API → HTML email via Gmail SMTP.
-Runs on GitHub Actions daily at 08:00 PST (UTC 16:00).
+Daily news digest: RSS → Claude CLI → HTML email via Gmail API (OAuth2).
 """
 
 import json
@@ -70,17 +69,7 @@ def generate_digest():
     parsed = json.loads(json_str)
     sections = resolve_references(parsed, all_articles)
 
-    # 4. Print digest to console
-    print("\n" + "=" * 60)
-    print("📋 Generated digest:")
-    print("=" * 60)
-    for section in sections:
-        print(f"\n{section['emoji']} {section['category']}")
-        for i, item in enumerate(section['items'], 1):
-            print(f"  {i}. {item['title_zh']}")
-    print("\n" + "=" * 60)
-
-    # 5. Render HTML
+    # 4. Render HTML
     email_html = build_email_html_from_json(sections, gas_prices=gas_prices)
 
     return email_html, parsed

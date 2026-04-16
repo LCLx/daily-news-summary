@@ -5,10 +5,9 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from anthropic import Anthropic, APIStatusError
 from json_repair import repair_json
 
-from core.config import ANTHROPIC_API_KEY, CLAUDE_MODEL, CLAUDE_CLI_MODEL, CLAUDE_MAX_TOKENS, CLAUDE_MAX_RETRIES
+from core.config import CLAUDE_CLI_MODEL, CLAUDE_MAX_RETRIES
 
 _PROMPT_PATH = Path(__file__).parent.parent / 'prompts' / 'email_digest.md'
 
@@ -53,12 +52,7 @@ def _validate_digest_structure(data):
 
 def generate_summary_with_claude(all_articles):
     """
-    Generate a Chinese digest via Claude API or CLI.
-
-    Backend selection (checked in order):
-      1. CLAUDE_BACKEND=cli  → Claude CLI subprocess (local dev / subscription)
-      2. ANTHROPIC_API_KEY set → Anthropic API (GitHub Actions / CI)
-      3. Neither set          → raises ValueError
+    Generate a Chinese digest via Claude CLI (claude -p).
 
     Args:
         all_articles: dict of articles grouped by category name
@@ -66,59 +60,9 @@ def generate_summary_with_claude(all_articles):
     Returns:
         str: JSON string with "sections" key
     """
-    use_cli = os.environ.get('CLAUDE_BACKEND', '').lower() == 'cli'
-    if not use_cli and not ANTHROPIC_API_KEY:
-        raise ValueError("Set ANTHROPIC_API_KEY (API) or CLAUDE_BACKEND=cli (CLI)")
-
     prompt = _build_prompt(all_articles)
-
-    if use_cli:
-        print("Calling Claude CLI to generate digest...")
-        return _call_cli(prompt)
-    else:
-        print(f"Calling Claude API to generate digest... (model: {CLAUDE_MODEL})")
-        return _call_api(prompt)
-
-
-def _call_api(prompt):
-    """Call Anthropic API with plain text output + json_repair fallback."""
-    client = Anthropic(api_key=ANTHROPIC_API_KEY)
-
-    def call():
-        message = client.messages.create(
-            model=CLAUDE_MODEL,
-            max_tokens=CLAUDE_MAX_TOKENS,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        text = _strip_fences(message.content[0].text.strip())
-        try:
-            parsed = json.loads(text)
-        except json.JSONDecodeError:
-            text = repair_json(text, ensure_ascii=False)
-            parsed = json.loads(text)
-            print("✅ JSON repaired")
-        parsed = _normalize_digest(parsed)
-        try:
-            _validate_digest_structure(parsed)
-        except ValueError:
-            print(f"⚠️ Raw Claude output (first 500 chars):\n{text[:500]}")
-            raise
-        return json.dumps(parsed, ensure_ascii=False)
-
-    last_err = None
-    for attempt in range(1, CLAUDE_MAX_RETRIES + 1):
-        try:
-            return call()
-        except APIStatusError as e:
-            last_err = e
-            print(f"⚠️ API attempt {attempt}/{CLAUDE_MAX_RETRIES} failed — "
-                  f"HTTP {e.status_code} | {type(e).__name__}: {e.message}"
-                  f"{f' | request_id: {e.request_id}' if e.request_id else ''}")
-        except Exception as e:
-            last_err = e
-            print(f"⚠️ API attempt {attempt}/{CLAUDE_MAX_RETRIES} failed — "
-                  f"{type(e).__name__}: {e}")
-    raise RuntimeError(f"Claude API failed after {CLAUDE_MAX_RETRIES} attempts: {last_err}") from last_err
+    print("Calling Claude CLI to generate digest...")
+    return _call_cli(prompt)
 
 
 def _call_cli(prompt):
