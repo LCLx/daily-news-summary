@@ -27,8 +27,8 @@ Tests are standalone scripts (not pytest). Each is run directly with `uv run`. `
 ```
 src/
   core/                    # shared modules
-    config.py              # RSS_SOURCES, DEALS_BLOCKED_KEYWORDS, env vars, CATEGORY_EMOJIS, CATEGORY_ZH_TO_RSS, CLAUDE_MAX_RETRIES
-    rss.py                 # extract_image_url(), fetch_rss_articles() — Deals category applies DEALS_BLOCKED_KEYWORDS filter
+    config.py              # RSS_SOURCES, env vars, CATEGORY_EMOJIS, CATEGORY_ZH_TO_RSS, CLAUDE_MAX_RETRIES
+    rss.py                 # extract_image_url(), fetch_rss_articles()
     claude_client.py       # generate_summary_with_claude() — Claude CLI (claude -p) + json_repair
     digest.py              # resolve_references() — maps Claude JSON refs to full article data
     renderer.py            # build_email_html_from_json() — renders sections to HTML
@@ -46,14 +46,14 @@ src/
 Both pipelines share `src/core/`. Test scripts add `src/` to `sys.path` and import via `core.*`.
 
 **Pipeline flow:**
-1. `fetch_rss_articles()` — fetches RSS, filters to last 24h (UTC), extracts images via `extract_image_url()`, drops Deals articles matching `DEALS_BLOCKED_KEYWORDS` (checks title + link + summary, handles both spaces and hyphens)
+1. `fetch_rss_articles()` — fetches RSS, filters to last 24h (UTC), extracts images via `extract_image_url()`
 2. `fetch_all_gas_prices()` — scrapes Vancouver gas price predictions from gaswizard.ca and Seattle metro current averages from AAA; returns list of city dicts (gracefully skips on failure)
 3. `generate_summary_with_claude()` — loads prompt from `prompts/email_digest.md`, calls Claude CLI (`claude -p`) with `json_repair` fallback, returns structured JSON with number-only article refs (e.g. `"3"`) to minimize output tokens
 4. `resolve_references()` — maps Claude's JSON refs back to full RSS article data (URL, image, source, etc.)
 5. `build_email_html_from_json()` — renders resolved sections using `templates/email.html` and stdlib `html.escape()` (XSS-safe); appends gas price cards at the end if available
 6. `send_email_gmail()` — delivers via Gmail REST API (OAuth2)
 
-RSS sources are defined in `RSS_SOURCES` in `src/core/config.py`, grouped by 6 categories: Tech & AI, Global Affairs, Business & Finance, Pacific Northwest, Health & Science, Deals.
+RSS sources are defined in `RSS_SOURCES` in `src/core/config.py`, grouped by 5 categories: Tech & AI, Global Affairs, Business & Finance, Pacific Northwest, Health & Science.
 
 Image extraction tries multiple strategies in order: `media_content` → `media_thumbnail` → `<img>` in content HTML → `<img>` in summary HTML.
 

@@ -32,13 +32,7 @@ RSS_SOURCES = {
         'https://www.nature.com/nature.rss',
         'https://feeds.npr.org/1007/rss.xml',
     ],
-    'Deals': [
-        'https://slickdeals.net/newsearch.php?mode=frontpage&searcharea=deals&searchin=first&rss=1',
-    ],
 }
-
-# Deals blocklist: drop articles matching these keywords (case-insensitive) in the Deals category
-DEALS_BLOCKED_KEYWORDS = ['home depot']
 
 # Claude CLI
 CLAUDE_CLI_MODEL = os.environ.get('CLAUDE_CLI_MODEL', 'haiku')
@@ -54,11 +48,11 @@ EMAIL_TO = os.environ.get('EMAIL_TO')
 # Chinese category name → emoji fallback (used by digest.py)
 CATEGORY_EMOJIS = {
     '科技与AI': '💻', '国际政治': '🌍', '经济与商业': '💰',
-    '太平洋西北地区': '🌲', '健康与科学': '🔬', '今日优惠': '🛍️',
+    '太平洋西北地区': '🌲', '健康与科学': '🔬',
 }
 
 # Chinese category name → English RSS key (used by digest.py to resolve number-only refs)
 CATEGORY_ZH_TO_RSS = {
     '科技与AI': 'Tech & AI', '国际政治': 'Global Affairs', '经济与商业': 'Business & Finance',
-    '太平洋西北地区': 'Pacific Northwest', '健康与科学': 'Health & Science', '今日优惠': 'Deals',
+    '太平洋西北地区': 'Pacific Northwest', '健康与科学': 'Health & Science',
 }

@@ -59,14 +59,26 @@ def send_email_gmail(subject, body_html, recipients):
         return []
 
 
-def delete_sent_emails(message_ids):
+def delete_sent_emails(_message_ids):
     """
-    Delete sent emails from Gmail.
+    No-op: Gmail API cannot cleanly remove Sent copies of self-sent emails.
 
-    Gmail API cannot remove the SENT label (system label).
-    For self-sent emails, trashing would remove from Inbox too.
-    Skip cleanup in API mode — Sent copy is harmless.
+    Why we can't: messages.send to self creates a single message with both
+    SENT and INBOX labels. SENT is a system label that the API refuses to
+    modify (unlike INBOX/UNREAD/etc.). Trashing by message ID removes both
+    copies. The Gmail web client achieves "delete from Sent only" via a
+    privileged operation that isn't exposed in the public API.
+
+    Alternatives considered and rejected:
+      - messages.insert to self + send to others: avoids Sent entirely but
+        bypasses the normal send path and needs a broader OAuth scope —
+        felt too hacky for the payoff.
+      - SMTP via app password: works naturally (Sent and Inbox are separate
+        messages there), but app passwords are disallowed in the Claude
+        Code remote environment this pipeline runs in.
+      - Removing INBOX label instead: opposite of desired UX.
+
+    Decision: accept the Sent copy. Clean up manually from Gmail web UI
+    with `in:sent subject:"..."` when it bothers you.
     """
-    if not message_ids:
-        return
-    print("ℹ️ Skipping Sent cleanup (Gmail API mode)")
+    return

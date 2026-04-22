@@ -2,7 +2,7 @@ import html
 from core.renderer import build_email_html_from_json, _render_body
 
 
-def _make_section(category='科技与AI', emoji='💻', is_deals=False, items=None):
+def _make_section(category='科技与AI', emoji='💻', items=None):
     if items is None:
         items = [{
             'title_zh': '测试标题',
@@ -13,7 +13,7 @@ def _make_section(category='科技与AI', emoji='💻', is_deals=False, items=No
             'published': '2025-01-01 12:00',
             'image_url': 'https://example.com/img.jpg',
         }]
-    return {'category': category, 'emoji': emoji, 'is_deals': is_deals, 'items': items}
+    return {'category': category, 'emoji': emoji, 'items': items}
 
 
 class TestRenderBody:
@@ -50,23 +50,6 @@ class TestRenderBody:
         }])
         body = _render_body([section])
         assert '<img' not in body
-
-    def test_deal_rendering(self):
-        items = [{
-            'title_zh': '好物推荐', 'summary_zh': '超值',
-            'link': 'https://deals.com/1', 'title': 'Deal',
-            'source': 'Slickdeals', 'published': '2025-01-01',
-            'image_url': None,
-            'price': '$19.99', 'original_price': '$39.99',
-            'discount': '50%', 'store': 'Amazon',
-        }]
-        section = _make_section(category='今日优惠', emoji='🛍️', is_deals=True, items=items)
-        body = _render_body([section])
-        assert '$19.99' in body
-        assert '$39.99' in body
-        assert '50%' in body
-        assert 'Amazon' in body
-        assert '查看优惠' in body
 
     def test_html_escaping(self):
         items = [{
