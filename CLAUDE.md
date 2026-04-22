@@ -18,6 +18,7 @@ uv run tests/test_rss.py                       # check RSS feed reachability + a
 uv run tests/test_claude.py                    # generate digest + save preview (no email)
 uv run tests/test_email.py                     # send last generated preview via Gmail (run test_claude.py first)
 uv run tests/test_integration.py               # end-to-end: full pipeline including email
+uv run scripts/get_refresh_token.py            # one-time setup: generate GMAIL_REFRESH_TOKEN via OAuth2
 ```
 
 Tests are standalone scripts (not pytest). Each is run directly with `uv run`. `test_claude.py` and `test_integration.py` import from `email_pipeline` directly (`generate_digest`, `save_preview`, `main`). The `generated/` directory is gitignored and holds `preview.html` and `preview.json` output.
@@ -41,6 +42,8 @@ src/
     email_digest.md        # Claude prompt template ($articles placeholder)
   templates/
     email.html             # HTML email wrapper/CSS ($date_str, $body_html placeholders)
+scripts/
+  get_refresh_token.py     # one-shot OAuth2 flow to generate GMAIL_REFRESH_TOKEN
 ```
 
 Both pipelines share `src/core/`. Test scripts add `src/` to `sys.path` and import via `core.*`.
@@ -67,7 +70,7 @@ Required in `.env` for local dev (loaded via `python-dotenv` in `config.py`):
 
 ## Conventions
 
-- **Language:** code comments in English; user-facing output (print statements, email content, Claude prompts) in Chinese
+- **Language:** code comments in English; user-facing pipeline output (email content, Telegram messages, Claude prompts, pipeline print statements) in Chinese; `scripts/` utility scripts (developer-facing) in English
 - **Package manager:** uv only (pyproject.toml, no requirements.txt)
 - **No test framework:** tests are plain Python scripts run with `uv run`
 - **Phase 2 (planned):** multi-user support via Supabase + FastAPI — see `docs/REQUIREMENTS.md`

@@ -19,7 +19,8 @@ def _get_access_token():
         'refresh_token': GMAIL_REFRESH_TOKEN,
         'grant_type': 'refresh_token',
     })
-    resp.raise_for_status()
+    if not resp.ok:
+        raise RuntimeError(f"OAuth2 token exchange failed ({resp.status_code}): {resp.text}")
     return resp.json()['access_token']
 
 

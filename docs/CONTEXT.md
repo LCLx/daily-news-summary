@@ -42,6 +42,8 @@ tests/
   test_claude.py           # full pipeline test, no email; writes generated/preview.html + preview.json
   test_email.py            # sends last generated preview via Gmail
   test_integration.py      # end-to-end: RSS → Claude → email; writes preview.html + preview.json
+scripts/
+  get_refresh_token.py     # one-shot OAuth2 flow to generate GMAIL_REFRESH_TOKEN (run once during setup)
 generated/                 # gitignored output directory
   preview.html             # local HTML preview matching exact email output
   preview.json             # raw Claude JSON output for debugging

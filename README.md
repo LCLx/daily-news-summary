@@ -50,6 +50,10 @@ uv sync
 # Shared:
 # CLAUDE_CLI_MODEL=haiku
 
+# One-time: generate GMAIL_REFRESH_TOKEN
+# (requires http://localhost as an Authorized redirect URI on the OAuth client)
+uv run scripts/get_refresh_token.py
+
 # Run email pipeline
 uv run src/pipelines/email_pipeline.py
 
