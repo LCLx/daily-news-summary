@@ -32,7 +32,7 @@ src/
     claude_client.py       # generate_summary_with_claude() — API or CLI, both with json_repair fallback
     digest.py              # resolve_references() — maps Claude JSON refs to full article data
     renderer.py            # build_email_html_from_json() — renders sections to HTML
-    gas_prices.py          # fetch_all_gas_prices() — Vancouver (gaswizard.ca) + Seattle (AAA)
+    gas_prices.py          # fetch_all_gas_prices() — Vancouver (gaswizard.ca) + Seattle (AAA primary, EIA fallback)
     mailer.py              # send_email_gmail() — Gmail SMTP delivery
   pipelines/               # entry points
     email_pipeline.py      # generate_digest() → save_preview() → send_email(); main() runs all three
@@ -47,7 +47,7 @@ Both pipelines share `src/core/`. Test scripts add `src/` to `sys.path` and impo
 
 **Pipeline flow:**
 1. `fetch_rss_articles()` — fetches RSS, filters to last 24h (UTC), extracts images via `extract_image_url()`
-2. `fetch_all_gas_prices()` — scrapes Vancouver gas price predictions from gaswizard.ca and Seattle metro current averages from AAA; returns list of city dicts (gracefully skips on failure)
+2. `fetch_all_gas_prices()` — scrapes Vancouver gas price predictions from gaswizard.ca and Seattle-Bellevue-Everett daily averages from AAA, falling back to EIA weekly data if AAA is unreachable; each city dict carries a `source_name` the renderer uses for attribution
 3. `generate_summary_with_claude()` — loads prompt from `prompts/email_digest.md`, calls Claude (API or CLI, both return text + `json_repair` fallback on parse failure), returns structured JSON with number-only article refs (e.g. `"3"`) to minimize output tokens
 4. `resolve_references()` — maps Claude's JSON refs back to full RSS article data (URL, image, source, etc.)
 5. `build_email_html_from_json()` — renders resolved sections using `templates/email.html` and stdlib `html.escape()` (XSS-safe); appends gas price cards at the end if available

@@ -85,7 +85,7 @@ def _render_gas_city(gp):
         avg = f'<p style="margin:10px 0 0;color:#6c757d;font-size:0.85em;">当前均价: {html.escape(gp["average_price"])}/L</p>'
 
     source_url = html.escape(gp['source_url'])
-    source_name = 'Gas Wizard' if 'gaswizard' in gp['source_url'] else 'AAA'
+    source_name = html.escape(gp.get('source_name', 'Source'))
 
     return (
         f'<div style="{_GAS_BOX_STYLE}">'
