@@ -21,7 +21,6 @@ def all_articles():
     return {
         'Tech & AI': _make_articles('Tech & AI', 5),
         'Global Affairs': _make_articles('Global Affairs', 3),
-        'Deals': _make_articles('Deals', 5),
     }
 
 
@@ -80,24 +79,6 @@ class TestResolveReferences:
         sections = resolve_references(parsed, all_articles)
         assert len(sections) == 0
         assert 'malformed section' in capsys.readouterr().out.lower()
-
-    def test_deal_fields_preserved(self, all_articles):
-        parsed = {'sections': [
-            {'category': '今日优惠', 'items': [
-                {
-                    'ref': '1', 'title_zh': '商品', 'summary_zh': '描述',
-                    'price': '$29.99', 'original_price': '$49.99',
-                    'discount': '40%', 'store': 'Amazon',
-                },
-            ]},
-        ]}
-        sections = resolve_references(parsed, all_articles)
-        item = sections[0]['items'][0]
-        assert item['price'] == '$29.99'
-        assert item['original_price'] == '$49.99'
-        assert item['discount'] == '40%'
-        assert item['store'] == 'Amazon'
-        assert sections[0]['is_deals'] is True
 
     def test_legacy_colon_ref_format(self, all_articles):
         parsed = {'sections': [

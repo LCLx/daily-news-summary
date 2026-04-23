@@ -53,13 +53,8 @@ def resolve_references(parsed_json, all_articles):
                 'published': original.get('published', ''),
                 'image_url': original.get('image_url'),
             }
-            # Deal-specific fields
-            for field in ('price', 'original_price', 'discount', 'store'):
-                if field in item:
-                    resolved[field] = item[field]
             resolved_items.append(resolved)
 
-        is_deals = rss_key == 'Deals'
-        sections.append({'category': category, 'emoji': emoji, 'is_deals': is_deals, 'items': resolved_items})
+        sections.append({'category': category, 'emoji': emoji, 'items': resolved_items})
 
     return sections

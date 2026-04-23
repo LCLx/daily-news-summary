@@ -18,9 +18,6 @@ _FORMAT_INSTRUCTIONS = """输出一个 JSON 对象，不要任何其他内容（
 {"sections": [
   {"category": "科技与AI", "items": [
     {"ref": "3", "title_zh": "中文标题", "summary_zh": "100-150字中文摘要"}
-  ]},
-  {"category": "今日优惠", "items": [
-    {"ref": "5", "title_zh": "中文商品名", "summary_zh": "一句话介绍", "price": "$XX.XX", "original_price": "$YY", "discount": "XX%", "store": "Amazon"}
   ]}
 ]}
 

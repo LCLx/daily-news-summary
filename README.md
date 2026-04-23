@@ -16,7 +16,6 @@ Both pipelines fetch articles published in the last 24 hours, select the most ne
 | Business & Finance | Financial Times, Reuters (via Google News), WSJ Markets |
 | Pacific Northwest | Seattle Times, CBC British Columbia |
 | Health & Science | ScienceDaily, Nature, NPR Health |
-| Deals | Slickdeals, Reddit r/deals |
 
 ## Setup
 

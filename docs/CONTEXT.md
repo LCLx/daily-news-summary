@@ -72,7 +72,6 @@ pyproject.toml             # uv dependencies
 | Business & Finance | FT, Reuters (via Google News RSS), WSJ Markets |
 | Pacific Northwest | Seattle Times, CBC British Columbia |
 | Health & Science | ScienceDaily, Nature, NPR Health |
-| Deals | Slickdeals, Reddit r/deals |
 
 Note: Reuters official RSS is dead. Using Google News RSS proxy:
 `https://news.google.com/rss/search?q=when:24h+allinurl:reuters.com+business&ceid=US:en&hl=en-US&gl=US`

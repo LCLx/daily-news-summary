@@ -101,10 +101,14 @@ def send_email_gmail(subject, body_html, recipients):
 
 def delete_sent_emails(message_ids):
     """
-    Delete sent emails from Gmail.
+    Delete Sent copies of just-sent emails.
 
-    Uses Gmail API if OAuth2 is available, otherwise IMAP.
-    For API-sent emails, message_ids are Gmail message IDs (not Message-ID headers).
+    SMTP mode (GMAIL_APP_PASSWORD): deletes via IMAP by Message-ID header — works.
+    API mode (OAuth2): no-op. Gmail API cannot remove the SENT system label, and
+    self-sent messages share one record with INBOX, so trashing would also drop
+    the Inbox copy. messages.insert / removing INBOX / SMTP-from-Actions were all
+    considered and rejected. Accept the Sent copy in API mode and clean up manually
+    from the web UI when needed.
     """
     if not message_ids:
         return
@@ -116,27 +120,24 @@ def delete_sent_emails(message_ids):
         print("🗑️ Deleting sent emails...")
 
         if use_api:
-            # Gmail API cannot remove the SENT label (system label).
-            # For self-sent emails, trashing would remove from Inbox too.
-            # Skip cleanup in API mode — Sent copy is harmless.
-            print("ℹ️ Skipping Sent cleanup (Gmail API mode)")
+            print("ℹ️ Skipping Sent cleanup (Gmail API mode — see docstring)")
             return
-        else:
-            if not GMAIL_USER or not GMAIL_APP_PASSWORD:
-                return
-            mail = imaplib.IMAP4_SSL('imap.gmail.com')
-            mail.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-            mail.select('"[Gmail]/Sent Mail"')
 
-            deleted = 0
-            for msg_id in message_ids:
-                _, data = mail.search(None, f'HEADER Message-ID "{msg_id}"')
-                nums = data[0].split()
-                for num in nums:
-                    mail.store(num, '+FLAGS', '\\Deleted')
-                    deleted += 1
-            mail.expunge()
-            print(f"✅ Deleted {deleted} sent email(s)" if deleted else "No matching sent emails found")
-            mail.logout()
+        if not GMAIL_USER or not GMAIL_APP_PASSWORD:
+            return
+        mail = imaplib.IMAP4_SSL('imap.gmail.com')
+        mail.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+        mail.select('"[Gmail]/Sent Mail"')
+
+        deleted = 0
+        for msg_id in message_ids:
+            _, data = mail.search(None, f'HEADER Message-ID "{msg_id}"')
+            nums = data[0].split()
+            for num in nums:
+                mail.store(num, '+FLAGS', '\\Deleted')
+                deleted += 1
+        mail.expunge()
+        print(f"✅ Deleted {deleted} sent email(s)" if deleted else "No matching sent emails found")
+        mail.logout()
     except Exception as e:
         print(f"⚠️ Failed to delete sent emails: {e}")

@@ -42,8 +42,7 @@ def generate_digest():
     all_articles = {}
     for category, feeds in RSS_SOURCES.items():
         print(f"  - {category}...")
-        kwargs = {'max_per_feed': 15} if category == 'Deals' else {}
-        articles = fetch_rss_articles(category, feeds, **kwargs)
+        articles = fetch_rss_articles(category, feeds)
         all_articles[category] = articles
         print(f"    {len(articles)} recent articles")
 
