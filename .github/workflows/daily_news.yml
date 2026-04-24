@@ -22,6 +22,7 @@ jobs:
         uses: astral-sh/setup-uv@v5
 
       - name: Configure AWS credentials
+        if: vars.BACKEND == 'BEDROCK_CLAUDE'
         uses: aws-actions/configure-aws-credentials@v6.1.0
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
@@ -36,6 +37,7 @@ jobs:
           BACKEND: ${{ vars.BACKEND }}
           AWS_REGION: ${{ vars.AWS_REGION }}
           MODEL: ${{ vars.MODEL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}

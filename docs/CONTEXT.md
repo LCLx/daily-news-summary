@@ -115,13 +115,13 @@ TELEGRAM_CHAT_ID=        # Telegram chat/channel ID
 
 # Shared LLM backend
 BACKEND=BEDROCK_CLAUDE   # BEDROCK_CLAUDE, CLAUDE_API, CLAUDE_CLI, or CODEX_CLI
-MODEL=                   # optional; backend model/alias. Defaults: Bedrock Claude uses us.anthropic.claude-haiku-4-5-20251001-v1:0, Claude API uses claude-haiku-4-5-20251001, Claude CLI uses haiku, Codex CLI uses its own configured default. Set explicitly for Codex-backed testing, e.g. gpt-5.4-mini
+MODEL=                   # optional; backend model/alias. Defaults: Bedrock Claude uses global.anthropic.claude-haiku-4-5-20251001-v1:0, Claude API uses claude-haiku-4-5-20251001, Claude CLI uses haiku, Codex CLI uses its own configured default. Set explicitly for Codex-backed testing, e.g. gpt-5.4-mini
 
 # Local dev / testing
 MODE=TEST                # optional; limits test scripts to 1 article per category (faster, fewer tokens)
 ```
 
-GitHub Actions (email pipeline): `BACKEND`, `AWS_REGION`, and `MODEL` come from Actions Variables. AWS OIDC role comes from the `AWS_ROLE_ARN` Secret; `GMAIL_USER`, `GMAIL_APP_PASSWORD`, and `EMAIL_TO` are also Secrets. Gmail API credentials are not needed for the current GA setup.
+GitHub Actions (email pipeline): `BACKEND`, `AWS_REGION`, and `MODEL` come from Actions Variables. For Bedrock, AWS OIDC role comes from the `AWS_ROLE_ARN` Secret. For Anthropic API, `ANTHROPIC_API_KEY` comes from Secrets. `GMAIL_USER`, `GMAIL_APP_PASSWORD`, and `EMAIL_TO` are also Secrets. Gmail API credentials are not needed for the current GA setup. Copy/paste variable sets for Bedrock and Anthropic API live in `.env.example`.
 
 ## Local dev workflow
 
@@ -142,4 +142,4 @@ uv run src/pipelines/email_pipeline.py       # full run including email
 | Haiku 4.5 | ~$0.014 | ~$0.42 |
 | Sonnet 4.5 | ~$0.053 | ~$1.60 |
 
-Current model: Claude Haiku 4.5 via AWS Bedrock in GitHub Actions.
+Current model: Claude Haiku 4.5 via AWS Bedrock global inference in GitHub Actions.

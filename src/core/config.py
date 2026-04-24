@@ -63,7 +63,7 @@ MAX_TOKENS = 8000
 MAX_RETRIES = 2
 
 DEFAULT_CLAUDE_API_MODEL = 'claude-haiku-4-5-20251001'
-DEFAULT_BEDROCK_CLAUDE_MODEL = 'us.anthropic.claude-haiku-4-5-20251001-v1:0'
+DEFAULT_BEDROCK_CLAUDE_MODEL = 'global.anthropic.claude-haiku-4-5-20251001-v1:0'
 DEFAULT_CLAUDE_CLI_MODEL = 'haiku'
 
 # Gmail API (OAuth2)

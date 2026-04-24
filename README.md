@@ -41,7 +41,7 @@ uv sync
 # Email pipeline:
 # BACKEND=BEDROCK_CLAUDE   # or CLAUDE_API / CLAUDE_CLI / CODEX_CLI
 # AWS_REGION=us-east-1
-# MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0
+# MODEL=global.anthropic.claude-haiku-4-5-20251001-v1:0
 # ANTHROPIC_API_KEY=...    # required only for BACKEND=CLAUDE_API
 # GMAIL_USER=your.address@gmail.com
 # Current GitHub Actions path:
@@ -95,7 +95,8 @@ Add the following secrets to your repository under **Settings → Secrets and va
 
 | Secret | Description |
 |---|---|
-| `AWS_ROLE_ARN` | IAM role assumed by GitHub Actions via OIDC |
+| `AWS_ROLE_ARN` | IAM role assumed by GitHub Actions via OIDC; required only for `BACKEND=BEDROCK_CLAUDE` |
+| `ANTHROPIC_API_KEY` | Anthropic API key; required only for `BACKEND=CLAUDE_API` |
 | `GMAIL_USER` | Gmail address used to send |
 | `GMAIL_APP_PASSWORD` | 16-character Gmail App Password, current GitHub Actions email path |
 | `EMAIL_TO` | Recipient address(es), comma-separated |
@@ -106,17 +107,13 @@ GitHub Actions uses AWS OIDC to assume the role in `AWS_ROLE_ARN`; no static AWS
 
 **Variables** (Settings → Secrets and variables → Actions → Variables):
 
-| Variable | Value |
-|---|---|
-| `BACKEND` | `BEDROCK_CLAUDE` |
-| `AWS_REGION` | `us-east-1` |
-| `MODEL` | `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
+Use the copy/paste blocks in `.env.example` for the Bedrock and Anthropic API configurations.
 
 Current default model:
 
 | Backend | Model | Cost/run | Quality |
 |---|---|---|---|
-| Bedrock Claude | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | ~$0.01 | Good — fast, cheap |
+| Bedrock Claude | `global.anthropic.claude-haiku-4-5-20251001-v1:0` | ~$0.01 | Good — fast, cheap |
 
 The workflow runs automatically on schedule and can also be triggered manually via `workflow_dispatch`.
 
