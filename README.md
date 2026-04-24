@@ -56,7 +56,7 @@ uv sync
 # Run email pipeline
 uv run src/pipelines/email_pipeline.py
 
-# Local subscription-backed testing examples:
+# Local subscription-backed testing examples (MODEL= is optional — shown values match the defaults):
 # BACKEND=CLAUDE_CLI MODEL=haiku MODE=TEST uv run tests/test_llm.py
 # BACKEND=CODEX_CLI MODEL=gpt-5.4-mini MODE=TEST uv run tests/test_llm.py
 ```

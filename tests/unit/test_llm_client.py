@@ -2,6 +2,8 @@ import json
 from io import BytesIO
 from pathlib import Path
 
+import pytest
+
 from core import llm_client
 
 
@@ -11,6 +13,19 @@ def test_parse_digest_text_repairs_and_normalizes():
     assert json.loads(llm_client._parse_digest_text(text, 'test')) == {
         'sections': [{'category': '科技与AI', 'items': []}],
     }
+
+
+def test_generate_summary_requires_backend(monkeypatch):
+    monkeypatch.setattr(llm_client, 'BACKEND', '')
+
+    with pytest.raises(ValueError, match='Set BACKEND'):
+        llm_client.generate_summary({})
+
+
+def test_model_for_codex_cli_defaults_to_mini(monkeypatch):
+    monkeypatch.setattr(llm_client, 'MODEL', None)
+
+    assert llm_client._model_for_backend('CODEX_CLI') == 'gpt-5.4-mini'
 
 
 def test_call_codex_cli_uses_exec_output_file(monkeypatch):

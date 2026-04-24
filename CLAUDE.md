@@ -62,8 +62,8 @@ Required in `.env` for local dev (loaded via `python-dotenv` in `config.py`):
 - `AWS_REGION`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` — email pipeline (current GitHub Actions path uses AWS OIDC + Bedrock Claude)
 - `ANTHROPIC_API_KEY` — required only for `BACKEND=CLAUDE_API`
 - `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` — optional Gmail API delivery mode, not currently configured in GitHub Actions
-- `BACKEND=BEDROCK_CLAUDE|CLAUDE_API|CLAUDE_CLI|CODEX_CLI` — email summary backend
-- `MODEL` — optional backend model/alias. Defaults: Bedrock Claude uses `global.anthropic.claude-haiku-4-5-20251001-v1:0`, Claude API uses `claude-haiku-4-5-20251001`, Claude CLI uses `haiku`, Codex CLI uses its own configured default if unset. For Codex-backed testing, set this explicitly, for example `gpt-5.4-mini`.
+- `BACKEND=BEDROCK_CLAUDE|CLAUDE_API|CLAUDE_CLI|CODEX_CLI` — required email summary backend
+- `MODEL` — optional backend model/alias. Defaults: Bedrock Claude uses `global.anthropic.claude-haiku-4-5-20251001-v1:0`, Claude API uses `claude-haiku-4-5-20251001`, Claude CLI uses `haiku`, Codex CLI uses `gpt-5.4-mini`.
 - `MODE=TEST` — optional; limits to 1 article per category in pipeline (faster, fewer tokens)
 
 ## Conventions

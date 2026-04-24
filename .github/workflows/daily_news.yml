@@ -37,7 +37,7 @@ jobs:
           BACKEND: ${{ vars.BACKEND }}
           AWS_REGION: ${{ vars.AWS_REGION }}
           MODEL: ${{ vars.MODEL }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ vars.BACKEND == 'CLAUDE_API' && secrets.ANTHROPIC_API_KEY || '' }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}

@@ -58,7 +58,7 @@ pyproject.toml             # uv dependencies
 
 | Module | Key functions |
 |---|---|
-| `core/config.py` | `RSS_SOURCES`, `STOCK_RSS_FEEDS`, `STOCK_INDICES`, env var constants, `CATEGORY_EMOJIS`, `CATEGORY_ZH_TO_RSS`, `BACKEND`, `MODEL`, `MAX_RETRIES` |
+| `core/config.py` | `RSS_SOURCES`, `STOCK_RSS_FEEDS`, `STOCK_INDICES`; LLM env constants (`BACKEND`, `MODEL`, `ANTHROPIC_API_KEY`, `AWS_REGION`, `MAX_TOKENS`, `MAX_RETRIES`); per-backend model defaults (`DEFAULT_CLAUDE_API_MODEL`, `DEFAULT_BEDROCK_CLAUDE_MODEL`, `DEFAULT_CLAUDE_CLI_MODEL`, `DEFAULT_CODEX_CLI_MODEL`); Gmail env constants (`GMAIL_USER`, `GMAIL_CLIENT_ID/SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_APP_PASSWORD`, `EMAIL_TO`); `CATEGORY_EMOJIS`, `CATEGORY_ZH_TO_RSS` |
 | `core/rss.py` | `extract_image_url(entry)` — tries media_content → media_thumbnail → HTML img parse; `fetch_rss_articles(category, feeds, hours=24)` — fetches RSS, filters to last 24h |
 | `core/llm_client.py` | `generate_summary(all_articles, stock_articles=None, stock_snapshot='')` — loads prompt from `prompts/email_digest.md`; `BACKEND=BEDROCK_CLAUDE`, `CLAUDE_API`, `CLAUDE_CLI`, or `CODEX_CLI`; all paths parse text JSON with `json_repair` fallback and up to `MAX_RETRIES` attempts |
 | `core/digest.py` | `resolve_references(parsed_json, all_articles)` maps normal section refs; `resolve_market_pulse(parsed_json, stock_articles)` maps market-pulse refs |
@@ -108,8 +108,8 @@ GMAIL_CLIENT_SECRET=     # Gmail API mode
 GMAIL_REFRESH_TOKEN=     # Gmail API mode
 
 # Email LLM backend
-BACKEND=BEDROCK_CLAUDE   # BEDROCK_CLAUDE, CLAUDE_API, CLAUDE_CLI, or CODEX_CLI
-MODEL=                   # optional; email backend model/alias. Defaults: Bedrock Claude uses global.anthropic.claude-haiku-4-5-20251001-v1:0, Claude API uses claude-haiku-4-5-20251001, Claude CLI uses haiku, Codex CLI uses its own configured default. Set explicitly for Codex-backed testing, e.g. gpt-5.4-mini
+BACKEND=BEDROCK_CLAUDE   # required; BEDROCK_CLAUDE, CLAUDE_API, CLAUDE_CLI, or CODEX_CLI
+MODEL=                   # optional; email backend model/alias. Defaults: Bedrock Claude uses global.anthropic.claude-haiku-4-5-20251001-v1:0, Claude API uses claude-haiku-4-5-20251001, Claude CLI uses haiku, Codex CLI uses gpt-5.4-mini
 
 # Local dev / testing
 MODE=TEST                # optional; limits test scripts to 1 article per category (faster, fewer tokens)

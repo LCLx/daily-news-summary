@@ -18,12 +18,14 @@ from core.config import (
     DEFAULT_BEDROCK_CLAUDE_MODEL,
     DEFAULT_CLAUDE_API_MODEL,
     DEFAULT_CLAUDE_CLI_MODEL,
+    DEFAULT_CODEX_CLI_MODEL,
     MAX_RETRIES,
     MAX_TOKENS,
     MODEL,
 )
 
 _PROMPT_PATH = Path(__file__).parent.parent / 'prompts' / 'email_digest.md'
+_SUPPORTED_BACKENDS = 'BEDROCK_CLAUDE, CLAUDE_API, CLAUDE_CLI, or CODEX_CLI'
 
 _FORMAT_INSTRUCTIONS = """输出一个 JSON 对象，不要任何其他内容（无 markdown、无开场白、无结束语）。
 
@@ -93,6 +95,9 @@ def generate_summary(all_articles, stock_articles=None, stock_snapshot=''):
     Returns:
         str: JSON string with "sections" key and optional "market_pulse"
     """
+    if not BACKEND:
+        raise ValueError(f"Set BACKEND to {_SUPPORTED_BACKENDS}")
+
     prompt = _build_prompt(all_articles, stock_articles or [], stock_snapshot)
 
     if BACKEND == 'CLAUDE_API':
@@ -116,7 +121,7 @@ def generate_summary(all_articles, stock_articles=None, stock_snapshot=''):
         return _call_codex_cli(prompt, model)
     raise ValueError(
         f"Unsupported BACKEND={BACKEND!r}. "
-        "Expected CLAUDE_API, BEDROCK_CLAUDE, CLAUDE_CLI, or CODEX_CLI"
+        f"Expected {_SUPPORTED_BACKENDS}"
     )
 
 
@@ -130,8 +135,8 @@ def _model_for_backend(backend):
     if backend == 'CLAUDE_CLI':
         return DEFAULT_CLAUDE_CLI_MODEL
     if backend == 'CODEX_CLI':
-        return None
-    return MODEL
+        return DEFAULT_CODEX_CLI_MODEL
+    raise ValueError(f"Unknown backend {backend!r}")
 
 
 def _parse_digest_text(text, source_name):
