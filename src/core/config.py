@@ -55,13 +55,15 @@ STOCK_INDICES = [
 ]
 
 # LLM backend
-BACKEND = os.environ.get('BACKEND', 'CLAUDE_API').upper()
+BACKEND = os.environ.get('BACKEND', 'BEDROCK_CLAUDE').upper()
 MODEL = os.environ.get('MODEL')
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
+AWS_REGION = os.environ.get('AWS_REGION') or os.environ.get('AWS_DEFAULT_REGION') or 'us-east-1'
 MAX_TOKENS = 8000
 MAX_RETRIES = 2
 
 DEFAULT_CLAUDE_API_MODEL = 'claude-haiku-4-5-20251001'
+DEFAULT_BEDROCK_CLAUDE_MODEL = 'us.anthropic.claude-haiku-4-5-20251001-v1:0'
 DEFAULT_CLAUDE_CLI_MODEL = 'haiku'
 
 # Gmail API (OAuth2)

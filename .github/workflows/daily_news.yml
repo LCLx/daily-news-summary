@@ -6,6 +6,10 @@ on:
     - cron: '0 15 * * *'
   workflow_dispatch:  # Allow manual trigger
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   generate-summary:
     runs-on: ubuntu-latest
@@ -17,13 +21,20 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6.1.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: daily-news-summary-${{ github.run_id }}
+
       - name: Install dependencies
         run: uv sync
 
       - name: Generate and send summary
         env:
-          BACKEND: CLAUDE_API
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BACKEND: ${{ vars.BACKEND }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
           MODEL: ${{ vars.MODEL }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}

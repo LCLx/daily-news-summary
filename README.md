@@ -24,7 +24,7 @@ The email pipeline also fetches a separate stock-market RSS set for the market p
 ### Prerequisites
 
 - [uv](https://docs.astral.sh/uv/)
-- **Email pipeline:** One summary backend (`BACKEND=CLAUDE_API`, `CLAUDE_CLI`, or `CODEX_CLI`) + Gmail account with an [App Password](https://myaccount.google.com/apppasswords). Gmail API OAuth2 support exists in code, but the current GitHub Actions setup uses SMTP/App Password.
+- **Email pipeline:** One summary backend (`BACKEND=BEDROCK_CLAUDE`, `CLAUDE_API`, `CLAUDE_CLI`, or `CODEX_CLI`) + Gmail account with an [App Password](https://myaccount.google.com/apppasswords). Gmail API OAuth2 support exists in code, but the current GitHub Actions setup uses SMTP/App Password.
 - **Telegram pipeline:** [Claude CLI](https://claude.ai/code) logged in with a Claude subscription + a Telegram bot token
 
 ### Local development
@@ -39,9 +39,10 @@ uv sync
 # Configure environment:
 # cp .env.example .env
 # Email pipeline:
-# BACKEND=CLAUDE_API        # or CLAUDE_CLI / CODEX_CLI for local subscription-backed testing
-# MODEL=claude-haiku-4-5-20251001
-# ANTHROPIC_API_KEY=...
+# BACKEND=BEDROCK_CLAUDE   # or CLAUDE_API / CLAUDE_CLI / CODEX_CLI
+# AWS_REGION=us-east-1
+# MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0
+# ANTHROPIC_API_KEY=...    # required only for BACKEND=CLAUDE_API
 # GMAIL_USER=your.address@gmail.com
 # Current GitHub Actions path:
 # GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx   (16-char App Password)
@@ -94,27 +95,28 @@ Add the following secrets to your repository under **Settings → Secrets and va
 
 | Secret | Description |
 |---|---|
-| `ANTHROPIC_API_KEY` | Anthropic API key |
+| `AWS_ROLE_ARN` | IAM role assumed by GitHub Actions via OIDC |
 | `GMAIL_USER` | Gmail address used to send |
 | `GMAIL_APP_PASSWORD` | 16-character Gmail App Password, current GitHub Actions email path |
 | `EMAIL_TO` | Recipient address(es), comma-separated |
 
 Gmail API OAuth2 secrets (`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`) are optional and not needed for the current workflow.
 
+GitHub Actions uses AWS OIDC to assume the role in `AWS_ROLE_ARN`; no static AWS access key secrets are required.
+
 **Variables** (Settings → Secrets and variables → Actions → Variables):
 
-| Variable | Description |
+| Variable | Value |
 |---|---|
-| `BACKEND` | Summary backend: `CLAUDE_API`, `CLAUDE_CLI`, or `CODEX_CLI`. The GitHub Actions workflow sets `CLAUDE_API` directly. |
-| `MODEL` | Optional backend model/alias. Defaults: Claude API uses `claude-haiku-4-5-20251001`, Claude CLI uses `haiku`, Codex CLI uses its own configured default if unset. For Codex-backed testing, set this explicitly, for example `gpt-5.4-mini`. |
+| `BACKEND` | `BEDROCK_CLAUDE` |
+| `AWS_REGION` | `us-east-1` |
+| `MODEL` | `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
 
-Available models:
+Current default model:
 
-| Model | Cost/run | Quality |
-|---|---|---|
-| `claude-haiku-4-5-20251001` | ~$0.01 | Good — fast, cheap |
-| `claude-sonnet-4-5-20250929` | ~$0.10 | Better — recommended for quality |
-| `claude-opus-4-6` | ~$0.50 | Best — highest quality |
+| Backend | Model | Cost/run | Quality |
+|---|---|---|---|
+| Bedrock Claude | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | ~$0.01 | Good — fast, cheap |
 
 The workflow runs automatically on schedule and can also be triggered manually via `workflow_dispatch`.
 
@@ -132,6 +134,7 @@ The workflow runs automatically on schedule and can also be triggered manually v
 
 | Service | Cost |
 |---|---|
+| Bedrock Claude (Haiku, default for `BACKEND=BEDROCK_CLAUDE`) | ~$0.01/run · ~$0.30/month |
 | Claude API (Haiku, default for `BACKEND=CLAUDE_API`) | ~$0.01/run · ~$0.30/month |
 | Claude CLI / Codex CLI local testing | Uses your local subscription login, not the Anthropic API key |
 | Gmail SMTP / Gmail API | Free |
@@ -140,6 +143,7 @@ The workflow runs automatically on schedule and can also be triggered manually v
 
 - Python 3.12+
 - [feedparser](https://feedparser.readthedocs.io/) — RSS parsing
+- [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html) — AWS Bedrock runtime client
 - [anthropic](https://github.com/anthropics/anthropic-sdk-python) — Claude API client
 - [json-repair](https://github.com/mangiucugna/json_repair) — JSON repair fallback for API and CLI output
 - Gmail SMTP (`smtplib`) with optional Gmail API support + stdlib `json`/`html` — email delivery and HTML rendering

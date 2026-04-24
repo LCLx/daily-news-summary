@@ -29,7 +29,7 @@ src/
   core/                    # shared modules
     config.py              # RSS_SOURCES, env vars, CATEGORY_EMOJIS, CATEGORY_ZH_TO_RSS, BACKEND, MODEL, MAX_RETRIES
     rss.py                 # extract_image_url(), fetch_rss_articles()
-    llm_client.py          # generate_summary() — Claude API, Claude CLI, or Codex CLI with json_repair fallback
+    llm_client.py          # generate_summary() — Bedrock Claude, Claude API, Claude CLI, or Codex CLI with json_repair fallback
     digest.py              # resolve_references() — maps LLM JSON refs to full article data
     renderer.py            # build_email_html_from_json() — renders sections to HTML
     gas_prices.py          # fetch_all_gas_prices() — Vancouver (gaswizard.ca) + Seattle (AAA primary, EIA fallback)
@@ -50,7 +50,7 @@ Both pipelines share `src/core/`. Test scripts add `src/` to `sys.path` and impo
 1. `fetch_rss_articles()` — fetches regular-category RSS, filters to last 24h (UTC), extracts images via `extract_image_url()`
 2. `fetch_all_gas_prices()` — scrapes Vancouver gas price predictions from gaswizard.ca and Seattle-Bellevue-Everett daily averages from AAA, falling back to EIA weekly data if AAA is unreachable; each city dict carries a `source_name` the renderer uses for attribution
 3. `fetch_stock_indices()` — fetches the CNBC quote snapshot for configured US indices; `STOCK_RSS_FEEDS` provides separate stock-market articles for the `market_pulse`
-4. `generate_summary()` — loads prompt from `prompts/email_digest.md`, calls the configured LLM backend (`BACKEND=CLAUDE_API`, `CLAUDE_CLI`, or `CODEX_CLI`), returns structured JSON with normal `sections` and optional `market_pulse`
+4. `generate_summary()` — loads prompt from `prompts/email_digest.md`, calls the configured LLM backend (`BACKEND=BEDROCK_CLAUDE`, `CLAUDE_API`, `CLAUDE_CLI`, or `CODEX_CLI`), returns structured JSON with normal `sections` and optional `market_pulse`
 5. `resolve_references()` and `resolve_market_pulse()` — map LLM number-only refs back to full RSS article data
 6. `build_email_html_from_json()` — renders market pulse, resolved news sections, and gas price cards using `templates/email.html` and stdlib `html.escape()` (XSS-safe)
 7. `send_email_gmail()` — delivers via Gmail SMTP with App Password in GitHub Actions; Gmail API support remains available if OAuth2 credentials are explicitly configured
@@ -63,11 +63,12 @@ Image extraction tries multiple strategies in order: `media_content` → `media_
 ## Environment variables
 
 Required in `.env` for local dev (loaded via `python-dotenv` in `config.py`):
-- `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` — email pipeline (current GitHub Actions path)
+- `AWS_REGION`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` — email pipeline (current GitHub Actions path uses AWS OIDC + Bedrock Claude)
+- `ANTHROPIC_API_KEY` — required only for `BACKEND=CLAUDE_API`
 - `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` — optional Gmail API delivery mode, not currently configured in GitHub Actions
 - `OPENCLAW_CONFIG`, `MODEL`, `TELEGRAM_CHAT_ID` — telegram pipeline
-- `BACKEND=CLAUDE_API|CLAUDE_CLI|CODEX_CLI` — email summary backend
-- `MODEL` — optional backend model/alias. Defaults: Claude API uses `claude-haiku-4-5-20251001`, Claude CLI uses `haiku`, Codex CLI uses its own configured default if unset. For Codex-backed testing, set this explicitly, for example `gpt-5.4-mini`.
+- `BACKEND=BEDROCK_CLAUDE|CLAUDE_API|CLAUDE_CLI|CODEX_CLI` — email summary backend
+- `MODEL` — optional backend model/alias. Defaults: Bedrock Claude uses `us.anthropic.claude-haiku-4-5-20251001-v1:0`, Claude API uses `claude-haiku-4-5-20251001`, Claude CLI uses `haiku`, Codex CLI uses its own configured default if unset. For Codex-backed testing, set this explicitly, for example `gpt-5.4-mini`.
 - `MODE=TEST` — optional; limits to 1 article per category in pipeline (faster, fewer tokens)
 
 ## Conventions

@@ -6,12 +6,16 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import boto3
+from botocore.exceptions import ClientError
 from anthropic import Anthropic, APIStatusError
 from json_repair import repair_json
 
 from core.config import (
     ANTHROPIC_API_KEY,
+    AWS_REGION,
     BACKEND,
+    DEFAULT_BEDROCK_CLAUDE_MODEL,
     DEFAULT_CLAUDE_API_MODEL,
     DEFAULT_CLAUDE_CLI_MODEL,
     MAX_RETRIES,
@@ -76,7 +80,8 @@ def generate_summary(all_articles, stock_articles=None, stock_snapshot=''):
     Generate a Chinese digest via the configured LLM backend.
 
     Backend selection:
-      BACKEND=CLAUDE_API  → Anthropic API (GitHub Actions / CI)
+      BACKEND=BEDROCK_CLAUDE → Claude via AWS Bedrock
+      BACKEND=CLAUDE_API  → Anthropic API
       BACKEND=CLAUDE_CLI  → Claude CLI subprocess (local dev / subscription)
       BACKEND=CODEX_CLI   → Codex CLI subprocess (local dev / subscription)
 
@@ -96,6 +101,10 @@ def generate_summary(all_articles, stock_articles=None, stock_snapshot=''):
         model = _model_for_backend(BACKEND)
         print(f"Calling Claude API to generate digest... (model: {model})")
         return _call_claude_api(prompt, model)
+    if BACKEND == 'BEDROCK_CLAUDE':
+        model = _model_for_backend(BACKEND)
+        print(f"Calling Bedrock Claude to generate digest... (model: {model}, region: {AWS_REGION})")
+        return _call_bedrock_claude(prompt, model)
     if BACKEND == 'CLAUDE_CLI':
         model = _model_for_backend(BACKEND)
         print(f"Calling Claude CLI to generate digest... (model: {model})")
@@ -106,7 +115,8 @@ def generate_summary(all_articles, stock_articles=None, stock_snapshot=''):
         print(f"Calling Codex CLI to generate digest... (model: {model_label})")
         return _call_codex_cli(prompt, model)
     raise ValueError(
-        f"Unsupported BACKEND={BACKEND!r}. Expected CLAUDE_API, CLAUDE_CLI, or CODEX_CLI"
+        f"Unsupported BACKEND={BACKEND!r}. "
+        "Expected CLAUDE_API, BEDROCK_CLAUDE, CLAUDE_CLI, or CODEX_CLI"
     )
 
 
@@ -115,6 +125,8 @@ def _model_for_backend(backend):
         return MODEL
     if backend == 'CLAUDE_API':
         return DEFAULT_CLAUDE_API_MODEL
+    if backend == 'BEDROCK_CLAUDE':
+        return DEFAULT_BEDROCK_CLAUDE_MODEL
     if backend == 'CLAUDE_CLI':
         return DEFAULT_CLAUDE_CLI_MODEL
     if backend == 'CODEX_CLI':
@@ -165,6 +177,53 @@ def _call_claude_api(prompt, model):
             print(f"⚠️ API attempt {attempt}/{MAX_RETRIES} failed — "
                   f"{type(e).__name__}: {e}")
     raise RuntimeError(f"Claude API failed after {MAX_RETRIES} attempts: {last_err}") from last_err
+
+
+def _call_bedrock_claude(prompt, model):
+    """Call Claude through AWS Bedrock with plain text output + json_repair fallback."""
+    client = boto3.client('bedrock-runtime', region_name=AWS_REGION)
+
+    def call():
+        request_body = {
+            'anthropic_version': 'bedrock-2023-05-31',
+            'max_tokens': MAX_TOKENS,
+            'messages': [
+                {
+                    'role': 'user',
+                    'content': [{'type': 'text', 'text': prompt}],
+                },
+            ],
+        }
+        response = client.invoke_model(
+            modelId=model,
+            body=json.dumps(request_body),
+            contentType='application/json',
+            accept='application/json',
+        )
+        payload = json.loads(response['body'].read())
+        text = ''.join(
+            block.get('text', '')
+            for block in payload.get('content', [])
+            if isinstance(block, dict)
+        )
+        if not text.strip():
+            raise RuntimeError("Bedrock Claude returned empty output")
+        return _parse_digest_text(text, 'Bedrock Claude')
+
+    last_err = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            return call()
+        except ClientError as e:
+            last_err = e
+            error = e.response.get('Error', {})
+            print(f"⚠️ Bedrock attempt {attempt}/{MAX_RETRIES} failed — "
+                  f"{error.get('Code', type(e).__name__)}: {error.get('Message', e)}")
+        except Exception as e:
+            last_err = e
+            print(f"⚠️ Bedrock attempt {attempt}/{MAX_RETRIES} failed — "
+                  f"{type(e).__name__}: {e}")
+    raise RuntimeError(f"Bedrock Claude failed after {MAX_RETRIES} attempts: {last_err}") from last_err
 
 
 def _call_claude_cli(prompt, model):
