@@ -63,7 +63,7 @@ uv run src/pipelines/email_pipeline.py
 
 # Local subscription-backed testing examples:
 # BACKEND=CLAUDE_CLI MODEL=haiku MODE=TEST uv run tests/test_llm.py
-# BACKEND=CODEX_CLI MODE=TEST uv run tests/test_llm.py
+# BACKEND=CODEX_CLI MODEL=gpt-5.4-mini MODE=TEST uv run tests/test_llm.py
 
 # Run Telegram pipeline
 uv run src/pipelines/telegram_pipeline.py
@@ -106,7 +106,7 @@ Gmail API OAuth2 secrets (`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRE
 | Variable | Description |
 |---|---|
 | `BACKEND` | Summary backend: `CLAUDE_API`, `CLAUDE_CLI`, or `CODEX_CLI`. The GitHub Actions workflow sets `CLAUDE_API` directly. |
-| `MODEL` | Optional backend model/alias. Defaults: Claude API uses `claude-haiku-4-5-20251001`, Claude CLI uses `haiku`, Codex CLI uses its own configured default |
+| `MODEL` | Optional backend model/alias. Defaults: Claude API uses `claude-haiku-4-5-20251001`, Claude CLI uses `haiku`, Codex CLI uses its own configured default if unset. For Codex-backed testing, set this explicitly, for example `gpt-5.4-mini`. |
 
 Available models:
 

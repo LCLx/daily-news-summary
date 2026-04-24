@@ -67,7 +67,7 @@ Required in `.env` for local dev (loaded via `python-dotenv` in `config.py`):
 - `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` — optional Gmail API delivery mode, not currently configured in GitHub Actions
 - `OPENCLAW_CONFIG`, `MODEL`, `TELEGRAM_CHAT_ID` — telegram pipeline
 - `BACKEND=CLAUDE_API|CLAUDE_CLI|CODEX_CLI` — email summary backend
-- `MODEL` — optional backend model/alias. Defaults: Claude API uses `claude-haiku-4-5-20251001`, Claude CLI uses `haiku`, Codex CLI uses its own configured default
+- `MODEL` — optional backend model/alias. Defaults: Claude API uses `claude-haiku-4-5-20251001`, Claude CLI uses `haiku`, Codex CLI uses its own configured default if unset. For Codex-backed testing, set this explicitly, for example `gpt-5.4-mini`.
 - `MODE=TEST` — optional; limits to 1 article per category in pipeline (faster, fewer tokens)
 
 ## Conventions

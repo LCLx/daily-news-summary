@@ -113,7 +113,7 @@ TELEGRAM_CHAT_ID=        # Telegram chat/channel ID
 
 # Shared LLM backend
 BACKEND=CLAUDE_API       # CLAUDE_API, CLAUDE_CLI, or CODEX_CLI
-MODEL=                   # optional; backend model/alias. Defaults: Claude API uses claude-haiku-4-5-20251001, Claude CLI uses haiku, Codex CLI uses its own configured default
+MODEL=                   # optional; backend model/alias. Defaults: Claude API uses claude-haiku-4-5-20251001, Claude CLI uses haiku, Codex CLI uses its own configured default. Set explicitly for Codex-backed testing, e.g. gpt-5.4-mini
 
 # Local dev / testing
 MODE=TEST                # optional; limits test scripts to 1 article per category (faster, fewer tokens)
