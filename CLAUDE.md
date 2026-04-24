@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-Two parallel pipelines, both fetching from the same RSS sources (`RSS_SOURCES` in `src/core/config.py`):
-- **Email pipeline** (`src/pipelines/email_pipeline.py`): RSS + gas prices → Claude API → HTML email via Gmail SMTP. Runs on GitHub Actions daily at 08:00 PST (UTC 16:00).
+Two parallel pipelines, both fetching from the shared RSS source config (`RSS_SOURCES` in `src/core/config.py`):
+- **Email pipeline** (`src/pipelines/email_pipeline.py`): RSS + gas prices + US market data → Claude API → HTML email via Gmail SMTP/App Password. Runs on GitHub Actions daily.
 - **Telegram pipeline** (`src/pipelines/telegram_pipeline.py`): RSS → Claude CLI (subscription, not API) → Telegram message.
 
 ## Commands
@@ -20,7 +20,7 @@ uv run tests/test_email.py                     # send last generated preview via
 uv run tests/test_integration.py               # end-to-end: full pipeline including email
 ```
 
-Tests are standalone scripts (not pytest). Each is run directly with `uv run`. `test_claude.py` and `test_integration.py` import from `email_pipeline` directly (`generate_digest`, `save_preview`, `main`). The `generated/` directory is gitignored and holds `preview.html` and `preview.json` output.
+Unit tests live under `tests/unit` and are run with `uv run pytest`. Older integration/check scripts are still run directly with `uv run`. `test_claude.py` and `test_integration.py` import from `email_pipeline` directly (`generate_digest`, `save_preview`, `main`). The `generated/` directory is gitignored and holds `preview.html` and `preview.json` output.
 
 ## Architecture
 
@@ -33,12 +33,13 @@ src/
     digest.py              # resolve_references() — maps Claude JSON refs to full article data
     renderer.py            # build_email_html_from_json() — renders sections to HTML
     gas_prices.py          # fetch_all_gas_prices() — Vancouver (gaswizard.ca) + Seattle (AAA primary, EIA fallback)
-    mailer.py              # send_email_gmail() — Gmail SMTP delivery
+    stock_market.py        # fetch_stock_indices() — CNBC quote snapshot for market pulse
+    mailer.py              # send_email_gmail() — Gmail SMTP/App Password path used in GA; Gmail API support retained
   pipelines/               # entry points
     email_pipeline.py      # generate_digest() → save_preview() → send_email(); main() runs all three
     telegram_pipeline.py   # telegram pipeline
   prompts/
-    email_digest.md        # Claude prompt template ($articles placeholder)
+    email_digest.md        # Claude prompt template ($articles, $stock_block placeholders)
   templates/
     email.html             # HTML email wrapper/CSS ($date_str, $body_html placeholders)
 ```
@@ -46,21 +47,24 @@ src/
 Both pipelines share `src/core/`. Test scripts add `src/` to `sys.path` and import via `core.*`.
 
 **Pipeline flow:**
-1. `fetch_rss_articles()` — fetches RSS, filters to last 24h (UTC), extracts images via `extract_image_url()`
+1. `fetch_rss_articles()` — fetches regular-category RSS, filters to last 24h (UTC), extracts images via `extract_image_url()`
 2. `fetch_all_gas_prices()` — scrapes Vancouver gas price predictions from gaswizard.ca and Seattle-Bellevue-Everett daily averages from AAA, falling back to EIA weekly data if AAA is unreachable; each city dict carries a `source_name` the renderer uses for attribution
-3. `generate_summary_with_claude()` — loads prompt from `prompts/email_digest.md`, calls Claude (API or CLI, both return text + `json_repair` fallback on parse failure), returns structured JSON with number-only article refs (e.g. `"3"`) to minimize output tokens
-4. `resolve_references()` — maps Claude's JSON refs back to full RSS article data (URL, image, source, etc.)
-5. `build_email_html_from_json()` — renders resolved sections using `templates/email.html` and stdlib `html.escape()` (XSS-safe); appends gas price cards at the end if available
-6. `send_email_gmail()` — delivers via Gmail SMTP with App Password
+3. `fetch_stock_indices()` — fetches the CNBC quote snapshot for configured US indices; `STOCK_RSS_FEEDS` provides separate stock-market articles for Claude's `market_pulse`
+4. `generate_summary_with_claude()` — loads prompt from `prompts/email_digest.md`, calls Claude (API or CLI, both return text + `json_repair` fallback on parse failure), returns structured JSON with normal `sections` and optional `market_pulse`
+5. `resolve_references()` and `resolve_market_pulse()` — map Claude's number-only refs back to full RSS article data
+6. `build_email_html_from_json()` — renders market pulse, resolved news sections, and gas price cards using `templates/email.html` and stdlib `html.escape()` (XSS-safe)
+7. `send_email_gmail()` — delivers via Gmail SMTP with App Password in GitHub Actions; Gmail API support remains available if OAuth2 credentials are explicitly configured
 
 RSS sources are defined in `RSS_SOURCES` in `src/core/config.py`, grouped by 5 categories: Tech & AI, Global Affairs, Business & Finance, Pacific Northwest, Health & Science.
+Stock market sources and quote symbols are defined in `STOCK_RSS_FEEDS` and `STOCK_INDICES`.
 
 Image extraction tries multiple strategies in order: `media_content` → `media_thumbnail` → `<img>` in content HTML → `<img>` in summary HTML.
 
 ## Environment variables
 
 Required in `.env` for local dev (loaded via `python-dotenv` in `config.py`):
-- `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` — email pipeline
+- `ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` — email pipeline (current GitHub Actions path)
+- `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` — optional Gmail API delivery mode, not currently configured in GitHub Actions
 - `OPENCLAW_CONFIG`, `CLAUDE_MODEL`, `CLAUDE_CLI_MODEL`, `TELEGRAM_CHAT_ID` — telegram pipeline
 - `CLAUDE_MODEL` — API model ID (e.g. `claude-haiku-4-5-20251001`), shared by both pipelines
 - `CLAUDE_CLI_MODEL` — CLI model alias (e.g. `haiku`), used by CLI backend
@@ -71,5 +75,5 @@ Required in `.env` for local dev (loaded via `python-dotenv` in `config.py`):
 
 - **Language:** code comments in English; user-facing output (print statements, email content, Claude prompts) in Chinese
 - **Package manager:** uv only (pyproject.toml, no requirements.txt)
-- **No test framework:** tests are plain Python scripts run with `uv run`
+- **Tests:** unit tests use pytest under `tests/unit`; older integration scripts are plain Python scripts run directly with `uv run`
 - **Phase 2 (planned):** multi-user support via Supabase + FastAPI — see `docs/REQUIREMENTS.md`

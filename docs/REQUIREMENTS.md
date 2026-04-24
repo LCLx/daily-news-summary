@@ -9,10 +9,11 @@
 - **RSS fetching:** 5 categories (Tech & AI, Global Affairs, Business & Finance, Pacific Northwest, Health & Science), 12 sources total
 - **Time filtering:** articles from the last 24 hours only
 - **Image extraction:** multi-strategy (media_thumbnail → media_content → HTML img tag)
-- **Claude summarization:** Anthropic API, Chinese markdown output
-- **HTML email:** markdown rendered to styled HTML, delivered via Gmail SMTP
-- **Scheduled automation:** GitHub Actions, daily at 08:00 PST
-- **Tests:** RSS reachability check + Claude pipeline preview
+- **Claude summarization:** Anthropic API or Claude CLI, Chinese structured JSON output with `json_repair` fallback
+- **HTML email:** structured digest rendered to styled HTML, delivered via Gmail SMTP/App Password in the current deployment
+- **Extras:** Vancouver/Seattle gas prices and optional US market pulse section
+- **Scheduled automation:** GitHub Actions daily schedule plus manual trigger
+- **Tests:** pytest unit tests, RSS reachability check, Claude pipeline preview, email send script
 - **Cost optimization:** Haiku model, ~$0.014/run, ~$0.42/month
 
 ---

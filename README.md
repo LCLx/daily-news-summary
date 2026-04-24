@@ -1,11 +1,11 @@
 # daily-news-summary
 
-Two parallel pipelines that fetch from the same RSS feeds and deliver Chinese summaries via different channels:
+Two parallel pipelines that fetch RSS feeds and deliver Chinese summaries via different channels:
 
-- **Email pipeline** — Claude API → HTML email via Gmail SMTP. Runs daily on GitHub Actions at 08:00 PST (UTC 16:00).
+- **Email pipeline** — RSS + gas prices + market data → Claude API → HTML email via Gmail SMTP/App Password. Runs daily on GitHub Actions.
 - **Telegram pipeline** — Claude CLI (subscription) → Telegram message. Run manually or on schedule.
 
-Both pipelines fetch articles published in the last 24 hours, select the most newsworthy items, and write concise Chinese summaries.
+Both pipelines fetch articles published in the last 24 hours, select the most newsworthy items, and write concise Chinese summaries. The email pipeline also appends Vancouver/Seattle gas prices and an optional US market pulse section.
 
 ## Categories and sources
 
@@ -17,12 +17,14 @@ Both pipelines fetch articles published in the last 24 hours, select the most ne
 | Pacific Northwest | Seattle Times, CBC British Columbia |
 | Health & Science | ScienceDaily, Nature, NPR Health |
 
+The email pipeline also fetches a separate stock-market RSS set for the market pulse narrative. Those articles are not rendered as normal news items.
+
 ## Setup
 
 ### Prerequisites
 
 - [uv](https://docs.astral.sh/uv/)
-- **Email pipeline:** An [Anthropic API key](https://console.anthropic.com/) + Gmail account with [App Password](https://myaccount.google.com/apppasswords) enabled
+- **Email pipeline:** An [Anthropic API key](https://console.anthropic.com/) + Gmail account with an [App Password](https://myaccount.google.com/apppasswords). Gmail API OAuth2 support exists in code, but the current GitHub Actions setup uses SMTP/App Password.
 - **Telegram pipeline:** [Claude CLI](https://claude.ai/code) logged in with a Claude subscription + a Telegram bot token
 
 ### Local development
@@ -38,8 +40,13 @@ uv sync
 # Email pipeline:
 # ANTHROPIC_API_KEY=...
 # GMAIL_USER=your.address@gmail.com
+# Current GitHub Actions path:
 # GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx   (16-char App Password)
 # EMAIL_TO=recipient@example.com
+# Optional Gmail API mode, not currently configured in GitHub Actions:
+# GMAIL_CLIENT_ID=...
+# GMAIL_CLIENT_SECRET=...
+# GMAIL_REFRESH_TOKEN=...
 #
 # Telegram pipeline:
 # OPENCLAW_CONFIG=/path/to/.openclaw/openclaw.json
@@ -58,6 +65,9 @@ uv run src/pipelines/telegram_pipeline.py
 ### Testing
 
 ```bash
+# Unit tests
+uv run pytest
+
 # Test RSS feed availability
 uv run tests/test_rss.py
 
@@ -79,8 +89,10 @@ Add the following secrets to your repository under **Settings → Secrets and va
 |---|---|
 | `ANTHROPIC_API_KEY` | Anthropic API key |
 | `GMAIL_USER` | Gmail address used to send |
-| `GMAIL_APP_PASSWORD` | 16-character Gmail App Password |
+| `GMAIL_APP_PASSWORD` | 16-character Gmail App Password, current GitHub Actions email path |
 | `EMAIL_TO` | Recipient address(es), comma-separated |
+
+Gmail API OAuth2 secrets (`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`) are optional and not needed for the current workflow.
 
 **Variables** (Settings → Secrets and variables → Actions → Variables):
 
@@ -103,6 +115,7 @@ The workflow runs automatically on schedule and can also be triggered manually v
 | What to change | Where |
 |---|---|
 | RSS feeds | `src/core/config.py` — `RSS_SOURCES` dict |
+| Stock market feeds / indices | `src/core/config.py` — `STOCK_RSS_FEEDS` and `STOCK_INDICES` |
 | Claude prompt / selection rules | `src/prompts/email_digest.md` |
 | Email layout and CSS | `src/templates/email.html` |
 | Lookback window (default 24h) | `hours` parameter in `fetch_rss_articles()` in `src/core/rss.py` |
@@ -112,15 +125,15 @@ The workflow runs automatically on schedule and can also be triggered manually v
 | Service | Cost |
 |---|---|
 | Claude (Haiku, default) | ~$0.01/run · ~$0.30/month |
-| Gmail SMTP | Free |
+| Gmail SMTP / Gmail API | Free |
 
 ## Stack
 
-- Python 3.11
+- Python 3.12+
 - [feedparser](https://feedparser.readthedocs.io/) — RSS parsing
-- [anthropic](https://github.com/anthropics/anthropic-sdk-python) — Claude API client (tool calling for guaranteed valid JSON output)
-- [json-repair](https://github.com/mangiucugna/json_repair) — JSON repair fallback for CLI backend
-- Gmail SMTP (`smtplib`) + stdlib `json`/`html` — email delivery and HTML rendering
+- [anthropic](https://github.com/anthropics/anthropic-sdk-python) — Claude API client
+- [json-repair](https://github.com/mangiucugna/json_repair) — JSON repair fallback for API and CLI output
+- Gmail SMTP (`smtplib`) with optional Gmail API support + stdlib `json`/`html` — email delivery and HTML rendering
 - GitHub Actions — scheduling and execution
 
 ## License
