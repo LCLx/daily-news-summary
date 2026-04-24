@@ -26,20 +26,42 @@ _GAS_TD_STYLE = 'padding:8px 12px;font-size:1em;'
 _GAS_CHANGE_UP = 'color:#e74c3c;font-weight:bold;'
 _GAS_CHANGE_DOWN = 'color:#27ae60;font-weight:bold;'
 
+# Market pulse styles — reuse gas palette for consistency.
+# US convention: red = down, green = up (opposite of gas, which tracks cost).
+_MKT_UP = 'color:#27ae60;font-weight:bold;'
+_MKT_DOWN = 'color:#e74c3c;font-weight:bold;'
+_MKT_SUMMARY_STYLE = (
+    'margin:14px 0 18px;padding:14px 18px;background:#fafbfc;'
+    'border-left:4px solid #3498db;border-radius:4px;line-height:1.7;'
+)
+_MKT_SUBHEAD_STYLE = 'color:#34495e;margin:18px 0 8px;font-size:1em;'
+_MKT_LIST_STYLE = 'margin:6px 0 14px;padding-left:22px;line-height:1.7;'
+_MKT_DRIVER_TITLE_STYLE = 'font-weight:bold;color:#2c3e50;'
+_MKT_RELATED_STYLE = (
+    'margin:12px 0 0;padding:10px 14px;background:#f8f9fa;border-radius:4px;'
+    'font-size:0.88em;color:#6c757d;'
+)
 
-def build_email_html_from_json(sections, gas_prices=None):
+
+def build_email_html_from_json(sections, gas_prices=None, stock_indices=None, market_pulse=None):
     """
     Render resolved section data into a complete HTML email document.
 
     Args:
         sections: list of section dicts from digest.resolve_references()
         gas_prices: optional list of city dicts from gas_prices.fetch_all_gas_prices()
+        stock_indices: optional list of index snapshot dicts from
+            stock_market.fetch_stock_indices()
+        market_pulse: optional dict from digest.resolve_market_pulse()
 
     Returns:
         str: Full HTML document string
     """
     date_str = datetime.now().strftime('%Y年%m月%d日')
-    body_html = _render_body(sections)
+    body_html = ''
+    if stock_indices or market_pulse:
+        body_html += _render_market_pulse_section(stock_indices or [], market_pulse)
+    body_html += _render_body(sections)
     if gas_prices:
         body_html += _render_gas_section(gas_prices)
     return (
@@ -47,6 +69,111 @@ def build_email_html_from_json(sections, gas_prices=None):
         .replace('$date_str', date_str)
         .replace('$body_html', body_html)
     )
+
+
+def _render_market_pulse_section(indices, pulse):
+    """Render the market pulse section: indices card + optional narrative."""
+    parts = [f'<h2 style="{_H2_STYLE}">📈 股市脉搏</h2>']
+    if indices:
+        parts.append(_render_indices_card(indices))
+    if pulse:
+        parts.append(_render_pulse_narrative(pulse))
+    return '\n'.join(parts) + '\n'
+
+
+def _render_indices_card(indices):
+    rows = []
+    for idx in indices:
+        change = html.escape(idx.get('change_display', ''))
+        if idx['direction'] == 'up':
+            change_html = f'<span style="{_MKT_UP}">▲ {change}</span>'
+        elif idx['direction'] == 'down':
+            change_html = f'<span style="{_MKT_DOWN}">▼ {change}</span>'
+        else:
+            change_html = html.escape(change)
+        rows.append(
+            f'<tr>'
+            f'<td style="{_GAS_TD_STYLE}">{html.escape(idx["name"])}</td>'
+            f'<td style="{_GAS_TD_STYLE}font-weight:bold;">{html.escape(str(idx["price"]))}</td>'
+            f'<td style="{_GAS_TD_STYLE}">{change_html}</td>'
+            f'</tr>'
+        )
+    return (
+        f'<div style="{_GAS_BOX_STYLE}">'
+        f'<p style="{_GAS_TITLE_STYLE}">📊 美股指数快照</p>'
+        f'<table style="{_GAS_TABLE_STYLE}">'
+        f'<tr><th style="{_GAS_TH_STYLE}">指数</th>'
+        f'<th style="{_GAS_TH_STYLE}">点位</th>'
+        f'<th style="{_GAS_TH_STYLE}">涨跌</th></tr>'
+        + '\n'.join(rows) +
+        f'</table>'
+        f'<p style="margin:8px 0 0;font-size:0.75em;color:#adb5bd;">'
+        f'来源: <a style="{_A_STYLE}" href="https://www.cnbc.com/quotes/">CNBC</a></p>'
+        f'</div>\n'
+    )
+
+
+def _render_pulse_narrative(pulse):
+    parts = []
+
+    summary = pulse.get('summary', '').strip()
+    if summary:
+        parts.append(f'<div style="{_MKT_SUMMARY_STYLE}">{html.escape(summary)}</div>')
+
+    drivers = pulse.get('drivers', [])
+    if drivers:
+        parts.append(f'<p style="{_MKT_SUBHEAD_STYLE}">🔑 关键驱动</p>')
+        items = []
+        for d in drivers:
+            title = html.escape(d.get('title', '').strip())
+            detail = html.escape(d.get('detail', '').strip())
+            items.append(
+                f'<li><span style="{_MKT_DRIVER_TITLE_STYLE}">{title}</span>'
+                + (f'：{detail}' if detail else '') + '</li>'
+            )
+        parts.append(f'<ul style="{_MKT_LIST_STYLE}">' + '\n'.join(items) + '</ul>')
+
+    watch = pulse.get('watch', [])
+    if watch:
+        parts.append(f'<p style="{_MKT_SUBHEAD_STYLE}">🗓️ 本周/近期关注</p>')
+        items = [f'<li>{html.escape(str(w))}</li>' for w in watch]
+        parts.append(f'<ul style="{_MKT_LIST_STYLE}">' + '\n'.join(items) + '</ul>')
+
+    related = pulse.get('related', [])
+    if related:
+        items = []
+        for r in related:
+            href = (r.get('link') or '').strip()
+            if not href:
+                continue
+            title_text = (r.get('title') or '').strip()
+            source_text = _clean_source_label((r.get('source') or '').strip())
+            label = title_text or source_text or 'Source'
+            source_html = (
+                f' <span style="color:#adb5bd;font-size:0.9em;">— {html.escape(source_text)}</span>'
+                if source_text and title_text and source_text not in title_text else ''
+            )
+            items.append(
+                f'<li style="margin:4px 0;line-height:1.5;">'
+                f'<a style="{_A_STYLE}" href="{html.escape(href)}">{html.escape(label)}</a>'
+                f'{source_html}</li>'
+            )
+        if items:
+            parts.append(
+                f'<div style="{_MKT_RELATED_STYLE}">'
+                f'<p style="margin:0 0 6px;">📎 相关阅读</p>'
+                f'<ul style="margin:0;padding-left:20px;">' + '\n'.join(items) + '</ul>'
+                f'</div>'
+            )
+
+    return '\n'.join(parts)
+
+
+def _clean_source_label(source):
+    """Google News RSS `source` is a query string like '"when:24h ..." - Google News'. Collapse to 'Google News'."""
+    if 'Google News' in source:
+        return 'Google News'
+    return source
 
 
 def _render_gas_section(gas_prices_list):

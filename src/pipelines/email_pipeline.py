@@ -11,13 +11,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 
 from datetime import datetime
 
-from core.config import RSS_SOURCES, EMAIL_TO
+from core.config import RSS_SOURCES, STOCK_RSS_FEEDS, EMAIL_TO
 from core.rss import fetch_rss_articles
 from core.claude_client import generate_summary_with_claude
-from core.digest import resolve_references
+from core.digest import resolve_references, resolve_market_pulse
 from core.renderer import build_email_html_from_json
 from core.mailer import send_email_gmail, delete_sent_emails
 from core.gas_prices import fetch_all_gas_prices
+from core.stock_market import fetch_stock_indices, format_snapshot_for_prompt
 
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'generated')
 SIMPLE_MODE = os.environ.get('MODE', '').upper() == 'TEST'
@@ -37,7 +38,7 @@ def generate_digest():
     print("=" * 60)
     print()
 
-    # 1. Fetch all RSS articles
+    # 1. Fetch narrative-category RSS articles
     print("📥 Fetching RSS articles...")
     all_articles = {}
     for category, feeds in RSS_SOURCES.items():
@@ -46,11 +47,17 @@ def generate_digest():
         all_articles[category] = articles
         print(f"    {len(articles)} recent articles")
 
+    # 1b. Fetch stock-market RSS (separate — feeds market_pulse only)
+    print("  - Stock Market (market_pulse input)...")
+    stock_articles = fetch_rss_articles('Stock Market', STOCK_RSS_FEEDS)
+    print(f"    {len(stock_articles)} recent articles")
+
     if SIMPLE_MODE:
         all_articles = {k: v[:1] for k, v in all_articles.items()}
+        stock_articles = stock_articles[:3]
 
     total_articles = sum(len(a) for a in all_articles.values())
-    print(f"\n✅ {total_articles} articles fetched\n")
+    print(f"\n✅ {total_articles} narrative + {len(stock_articles)} stock articles fetched\n")
 
     if total_articles == 0:
         print("⚠️ No articles found, exiting")
@@ -64,23 +71,44 @@ def generate_digest():
     if not gas_prices:
         print("  ⚠️ Gas prices unavailable, skipping")
 
-    # 3. Generate digest via Claude (JSON output)
-    json_str = generate_summary_with_claude(all_articles)
+    # 3. Fetch stock index snapshot
+    print("📈 Fetching stock indices...")
+    stock_indices = fetch_stock_indices()
+    for i in stock_indices:
+        print(f"  {i['name']}: {i['price']} ({i['change_display']})")
+    if not stock_indices:
+        print("  ⚠️ Stock indices unavailable, skipping")
+
+    # 4. Generate digest via Claude (JSON output with sections + market_pulse)
+    stock_snapshot = format_snapshot_for_prompt(stock_indices)
+    json_str = generate_summary_with_claude(
+        all_articles,
+        stock_articles=stock_articles,
+        stock_snapshot=stock_snapshot,
+    )
     parsed = json.loads(json_str)
     sections = resolve_references(parsed, all_articles)
+    market_pulse = resolve_market_pulse(parsed, stock_articles)
 
-    # 4. Print digest to console
+    # 5. Print digest to console
     print("\n" + "=" * 60)
     print("📋 Generated digest:")
     print("=" * 60)
+    if market_pulse:
+        print(f"\n📈 Market Pulse: {market_pulse.get('summary', '')[:80]}...")
     for section in sections:
         print(f"\n{section['emoji']} {section['category']}")
         for i, item in enumerate(section['items'], 1):
             print(f"  {i}. {item['title_zh']}")
     print("\n" + "=" * 60)
 
-    # 5. Render HTML
-    email_html = build_email_html_from_json(sections, gas_prices=gas_prices)
+    # 6. Render HTML
+    email_html = build_email_html_from_json(
+        sections,
+        gas_prices=gas_prices,
+        stock_indices=stock_indices,
+        market_pulse=market_pulse,
+    )
 
     return email_html, parsed
 

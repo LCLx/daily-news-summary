@@ -15,12 +15,21 @@ _PROMPT_PATH = Path(__file__).parent.parent / 'prompts' / 'email_digest.md'
 _FORMAT_INSTRUCTIONS = """输出一个 JSON 对象，不要任何其他内容（无 markdown、无开场白、无结束语）。
 
 **JSON 格式：**
-{"sections": [
-  {"category": "科技与AI", "items": [
-    {"ref": "3", "title_zh": "中文标题", "summary_zh": "100-150字中文摘要"}
-  ]}
-]}
+{
+  "sections": [
+    {"category": "科技与AI", "items": [
+      {"ref": "3", "title_zh": "中文标题", "summary_zh": "100-150字中文摘要"}
+    ]}
+  ],
+  "market_pulse": {
+    "summary": "2-3 句定调",
+    "drivers": [{"title": "驱动名", "detail": "30-60字详情"}],
+    "watch": ["前瞻1", "前瞻2"],
+    "refs": ["1", "3"]
+  }
+}
 
+market_pulse 引用的是"股市"板块的文章编号。若股市素材不足，整个 market_pulse 设为 null。
 只输出合法 JSON，不要任何其他内容。"""
 
 
@@ -35,6 +44,7 @@ def _validate_digest_structure(data):
     """Validate that Claude's output matches the expected digest schema.
 
     Raises ValueError if the structure is malformed (triggers retry).
+    market_pulse is optional and may be null; validated lightly if present.
     """
     if not isinstance(data, dict) or 'sections' not in data:
         raise ValueError(f"Expected dict with 'sections' key, got {type(data).__name__}")
@@ -47,8 +57,12 @@ def _validate_digest_structure(data):
         if 'category' not in section or 'items' not in section:
             raise ValueError(f"sections[{i}] missing required keys (has: {list(section.keys())})")
 
+    pulse = data.get('market_pulse')
+    if pulse is not None and not isinstance(pulse, dict):
+        raise ValueError(f"market_pulse must be dict or null, got {type(pulse).__name__}")
 
-def generate_summary_with_claude(all_articles):
+
+def generate_summary_with_claude(all_articles, stock_articles=None, stock_snapshot=''):
     """
     Generate a Chinese digest via Claude API or CLI.
 
@@ -58,16 +72,18 @@ def generate_summary_with_claude(all_articles):
       3. Neither set          → raises ValueError
 
     Args:
-        all_articles: dict of articles grouped by category name
+        all_articles: dict of articles grouped by narrative category name
+        stock_articles: list of stock-market articles (fed to market_pulse only)
+        stock_snapshot: pre-formatted compact index snapshot string
 
     Returns:
-        str: JSON string with "sections" key
+        str: JSON string with "sections" key and optional "market_pulse"
     """
     use_cli = os.environ.get('CLAUDE_BACKEND', '').lower() == 'cli'
     if not use_cli and not ANTHROPIC_API_KEY:
         raise ValueError("Set ANTHROPIC_API_KEY (API) or CLAUDE_BACKEND=cli (CLI)")
 
-    prompt = _build_prompt(all_articles)
+    prompt = _build_prompt(all_articles, stock_articles or [], stock_snapshot)
 
     if use_cli:
         print("Calling Claude CLI to generate digest...")
@@ -159,7 +175,7 @@ def _call_cli(prompt):
     raise ValueError(f"Claude CLI failed after {CLAUDE_MAX_RETRIES} attempts: {last_err}")
 
 
-def _build_prompt(all_articles):
+def _build_prompt(all_articles, stock_articles, stock_snapshot):
     articles_by_category = []
     for category, articles in all_articles.items():
         if not articles:
@@ -170,8 +186,34 @@ def _build_prompt(all_articles):
         articles_by_category.append(block)
 
     full_content = "\n".join(articles_by_category)
+    stock_block = _format_stock_block(stock_articles, stock_snapshot)
+
     template = _PROMPT_PATH.read_text(encoding='utf-8')
-    return template.replace('$articles', full_content).replace('$format_instructions', _FORMAT_INSTRUCTIONS)
+    return (
+        template
+        .replace('$articles', full_content)
+        .replace('$stock_block', stock_block)
+        .replace('$format_instructions', _FORMAT_INSTRUCTIONS)
+    )
+
+
+def _format_stock_block(stock_articles, stock_snapshot):
+    """Format stock articles + index snapshot as a single block for market_pulse input."""
+    if not stock_articles and not stock_snapshot:
+        return '(今日无股市数据，market_pulse 设为 null)'
+
+    parts = []
+    if stock_articles:
+        parts.append('## 股市（基于此板块生成 market_pulse）\n')
+        for i, article in enumerate(stock_articles[:20], 1):
+            parts.append(
+                f"[{i}] {article['title']} | src: {article['source']}\n"
+                f"{article['summary']}\n"
+            )
+    if stock_snapshot:
+        parts.append('\n## 今日美股指数快照\n')
+        parts.append(stock_snapshot)
+    return '\n'.join(parts)
 
 
 def _strip_fences(text):

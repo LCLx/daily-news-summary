@@ -34,6 +34,26 @@ RSS_SOURCES = {
     ],
 }
 
+# US stock market feeds — fed to Claude for market_pulse narrative only,
+# not rendered as regular news items.
+STOCK_RSS_FEEDS = [
+    'https://feeds.marketwatch.com/marketwatch/marketpulse/',
+    'https://feeds.marketwatch.com/marketwatch/topstories/',
+    'https://news.google.com/rss/search?q=when:24h+%22stock+market%22+OR+%22S%26P+500%22+OR+%22Nasdaq%22&hl=en-US&gl=US&ceid=US:en',
+]
+
+# US index symbols (CNBC quote API) + display metadata.
+# `unit` controls how change is rendered: 'pct' uses CNBC's change_pct string
+# (e.g. '-0.41%'); 'bp' converts yield change in percentage points to
+# basis points (e.g. '+3bp').
+STOCK_INDICES = [
+    {'symbol': '.SPX', 'name': 'S&P 500', 'unit': 'pct'},
+    {'symbol': '.IXIC', 'name': 'Nasdaq', 'unit': 'pct'},
+    {'symbol': '.DJI', 'name': 'Dow Jones', 'unit': 'pct'},
+    {'symbol': '.VIX', 'name': 'VIX', 'unit': 'pct'},
+    {'symbol': 'US10Y', 'name': '10Y Treasury', 'unit': 'bp'},
+]
+
 # Claude model
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
 CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL') or 'claude-haiku-4-5-20251001'      # API model ID

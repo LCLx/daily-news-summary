@@ -3,7 +3,7 @@ from core.config import CATEGORY_EMOJIS, CATEGORY_ZH_TO_RSS
 
 def resolve_references(parsed_json, all_articles):
     """
-    Resolve ref fields in Claude's JSON output to full article data.
+    Resolve ref fields in Claude's JSON 'sections' output to full article data.
 
     Refs are number-only (e.g. "3"), resolved against the section's category.
 
@@ -32,7 +32,6 @@ def resolve_references(parsed_json, all_articles):
 
         for item in section.get('items', []):
             ref = item.get('ref', '')
-            # Support both number-only ("3") and legacy "Category:3" format
             idx_str = ref.rsplit(':', 1)[-1] if ':' in ref else ref
             try:
                 idx = int(idx_str)
@@ -58,3 +57,43 @@ def resolve_references(parsed_json, all_articles):
         sections.append({'category': category, 'emoji': emoji, 'items': resolved_items})
 
     return sections
+
+
+def resolve_market_pulse(parsed_json, stock_articles):
+    """
+    Resolve market_pulse refs to full article data for the 'related reading' strip.
+
+    Args:
+        parsed_json: Parsed JSON dict from Claude (may contain "market_pulse" key)
+        stock_articles: Stock-market articles fed to Claude as market_pulse input
+
+    Returns:
+        dict with keys {summary, drivers, watch, related}, or None if absent
+    """
+    pulse = parsed_json.get('market_pulse') if isinstance(parsed_json, dict) else None
+    if not pulse or not isinstance(pulse, dict):
+        return None
+
+    related = []
+    for ref in pulse.get('refs', []):
+        try:
+            idx = int(str(ref).rsplit(':', 1)[-1])
+        except ValueError:
+            print(f"⚠️ Invalid market_pulse ref: {ref}")
+            continue
+        if idx < 1 or idx > len(stock_articles):
+            print(f"⚠️ market_pulse ref {ref} out of range (have {len(stock_articles)} stock articles)")
+            continue
+        original = stock_articles[idx - 1]
+        related.append({
+            'title': original.get('title', ''),
+            'link': original.get('link', ''),
+            'source': original.get('source', ''),
+        })
+
+    return {
+        'summary': pulse.get('summary', ''),
+        'drivers': [d for d in pulse.get('drivers', []) if isinstance(d, dict)],
+        'watch': [w for w in pulse.get('watch', []) if isinstance(w, str)],
+        'related': related,
+    }
