@@ -1,5 +1,5 @@
 import pytest
-from core.digest import resolve_references
+from core.digest import resolve_market_pulse, resolve_references
 
 
 def _make_articles(category, n):
@@ -98,3 +98,73 @@ class TestResolveReferences:
         parsed = {}
         sections = resolve_references(parsed, all_articles)
         assert sections == []
+
+
+@pytest.fixture
+def stock_articles():
+    return [
+        {
+            'title': f'Market Article {i}',
+            'link': f'https://markets.example.com/{i}',
+            'source': 'Market Source',
+        }
+        for i in range(1, 4)
+    ]
+
+
+class TestResolveMarketPulse:
+    def test_absent_or_null_pulse_returns_none(self, stock_articles):
+        assert resolve_market_pulse({}, stock_articles) is None
+        assert resolve_market_pulse({'market_pulse': None}, stock_articles) is None
+        assert resolve_market_pulse({'market_pulse': 'bad'}, stock_articles) is None
+
+    def test_valid_refs_resolved(self, stock_articles):
+        parsed = {
+            'market_pulse': {
+                'summary': '市场承压。',
+                'drivers': [{'title': '利率', 'detail': '收益率上行'}],
+                'watch': ['CPI'],
+                'refs': ['1', 'Stock:3'],
+            }
+        }
+
+        pulse = resolve_market_pulse(parsed, stock_articles)
+
+        assert pulse['summary'] == '市场承压。'
+        assert pulse['drivers'] == [{'title': '利率', 'detail': '收益率上行'}]
+        assert pulse['watch'] == ['CPI']
+        assert pulse['related'] == [
+            {
+                'title': 'Market Article 1',
+                'link': 'https://markets.example.com/1',
+                'source': 'Market Source',
+            },
+            {
+                'title': 'Market Article 3',
+                'link': 'https://markets.example.com/3',
+                'source': 'Market Source',
+            },
+        ]
+
+    def test_bad_refs_skipped_and_bad_lists_filtered(self, stock_articles, capsys):
+        parsed = {
+            'market_pulse': {
+                'summary': '市场震荡。',
+                'drivers': [{'title': '财报'}, 'bad'],
+                'watch': ['就业数据', {'bad': 'item'}],
+                'refs': ['abc', '99', '2'],
+            }
+        }
+
+        pulse = resolve_market_pulse(parsed, stock_articles)
+
+        assert pulse['drivers'] == [{'title': '财报'}]
+        assert pulse['watch'] == ['就业数据']
+        assert pulse['related'] == [{
+            'title': 'Market Article 2',
+            'link': 'https://markets.example.com/2',
+            'source': 'Market Source',
+        }]
+        output = capsys.readouterr().out
+        assert 'Invalid market_pulse ref' in output
+        assert 'out of range' in output

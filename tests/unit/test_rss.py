@@ -1,6 +1,22 @@
 import pytest
 from unittest.mock import MagicMock
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
+
+from core import rss
 from core.rss import extract_image_url, _resolve_source_name
+
+
+class _Entry(dict):
+    def __getattr__(self, key):
+        try:
+            return self[key]
+        except KeyError as exc:
+            raise AttributeError(key) from exc
+
+
+def _time_tuple(dt):
+    return dt.utctimetuple()
 
 
 class TestExtractImageUrl:
@@ -72,3 +88,102 @@ class TestResolveSourceName:
 
     def test_fallback_to_feed_title(self):
         assert _resolve_source_name('https://unknown.com/feed', 'My Blog') == 'My Blog'
+
+
+class TestFetchRssArticles:
+    def test_filters_recent_articles_limits_each_feed_and_sorts_newest_first(self, monkeypatch):
+        now = datetime.now(timezone.utc)
+        feed_entries = {
+            'https://example.com/feed-a.xml': [
+                _Entry({
+                    'title': 'Newest &amp; Escaped',
+                    'link': 'https://example.com/newest',
+                    'published_parsed': _time_tuple(now - timedelta(hours=1)),
+                    'summary': 'new summary',
+                    'media_content': [{'url': 'https://example.com/newest.jpg'}],
+                }),
+                _Entry({
+                    'title': 'Second',
+                    'link': 'https://example.com/second',
+                    'published_parsed': _time_tuple(now - timedelta(hours=2)),
+                    'summary': 'second summary',
+                }),
+                _Entry({
+                    'title': 'Third skipped by per-feed limit',
+                    'link': 'https://example.com/third',
+                    'published_parsed': _time_tuple(now - timedelta(hours=3)),
+                    'summary': 'third summary',
+                }),
+            ],
+            'https://unknown.com/feed-b.xml': [
+                _Entry({
+                    'title': 'Other Feed',
+                    'link': 'https://unknown.com/other',
+                    'published_parsed': _time_tuple(now - timedelta(minutes=30)),
+                    'summary': 'other summary',
+                }),
+                _Entry({
+                    'title': 'Old skipped',
+                    'link': 'https://unknown.com/old',
+                    'published_parsed': _time_tuple(now - timedelta(hours=48)),
+                    'summary': 'old summary',
+                }),
+            ],
+        }
+
+        def fake_parse(feed_url, agent):
+            return SimpleNamespace(
+                feed={'title': 'Example Feed'},
+                entries=feed_entries[feed_url],
+            )
+
+        monkeypatch.setattr(rss.feedparser, 'parse', fake_parse)
+
+        articles = rss.fetch_rss_articles(
+            'Tech & AI',
+            ['https://example.com/feed-a.xml', 'https://unknown.com/feed-b.xml'],
+            hours=24,
+            max_per_feed=2,
+        )
+
+        assert [a['title'] for a in articles] == [
+            'Other Feed',
+            'Newest & Escaped',
+            'Second',
+        ]
+        assert articles[1]['image_url'] == 'https://example.com/newest.jpg'
+        assert all(a['category'] == 'Tech & AI' for a in articles)
+        assert all(a['source'] == 'Example Feed' for a in articles)
+        assert 'Third skipped by per-feed limit' not in [a['title'] for a in articles]
+        assert 'Old skipped' not in [a['title'] for a in articles]
+
+    def test_uses_updated_parsed_when_published_missing(self, monkeypatch):
+        now = datetime.now(timezone.utc)
+
+        def fake_parse(feed_url, agent):
+            return SimpleNamespace(
+                feed={'title': 'Updated Feed'},
+                entries=[_Entry({
+                    'title': 'Updated Article',
+                    'link': 'https://example.com/updated',
+                    'updated_parsed': _time_tuple(now - timedelta(hours=1)),
+                    'summary': 'updated summary',
+                })],
+            )
+
+        monkeypatch.setattr(rss.feedparser, 'parse', fake_parse)
+
+        articles = rss.fetch_rss_articles('Global Affairs', ['https://example.com/feed.xml'])
+
+        assert len(articles) == 1
+        assert articles[0]['title'] == 'Updated Article'
+        assert articles[0]['published']
+
+    def test_parse_failure_skips_feed(self, monkeypatch, capsys):
+        def fake_parse(feed_url, agent):
+            raise RuntimeError('boom')
+
+        monkeypatch.setattr(rss.feedparser, 'parse', fake_parse)
+
+        assert rss.fetch_rss_articles('Tech & AI', ['https://example.com/feed.xml']) == []
+        assert 'Failed to fetch https://example.com/feed.xml' in capsys.readouterr().out
