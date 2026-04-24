@@ -2,9 +2,8 @@
 
 ## What this is
 
-Two parallel pipelines fetching from the shared RSS sources:
+Single pipeline:
 - **Email pipeline** (`src/pipelines/email_pipeline.py`): RSS + gas prices + US market data → configured LLM backend → HTML email via Gmail SMTP/App Password. Runs on GitHub Actions daily.
-- **Telegram pipeline** (`src/pipelines/telegram_pipeline.py`): RSS → Claude CLI (subscription, not API) → Telegram message.
 
 ## Stack
 
@@ -33,7 +32,6 @@ src/
     mailer.py              # send_email_gmail (Gmail SMTP/App Password path used in GA; Gmail API support retained)
   pipelines/               # entry points
     email_pipeline.py      # main() — orchestrates the email pipeline
-    telegram_pipeline.py   # telegram pipeline
   prompts/
     email_digest.md        # digest prompt template ($articles, $stock_block placeholders)
   templates/
@@ -109,13 +107,9 @@ GMAIL_CLIENT_ID=         # Gmail API mode
 GMAIL_CLIENT_SECRET=     # Gmail API mode
 GMAIL_REFRESH_TOKEN=     # Gmail API mode
 
-# Telegram pipeline
-OPENCLAW_CONFIG=         # absolute path to openclaw.json
-TELEGRAM_CHAT_ID=        # Telegram chat/channel ID
-
-# Shared LLM backend
+# Email LLM backend
 BACKEND=BEDROCK_CLAUDE   # BEDROCK_CLAUDE, CLAUDE_API, CLAUDE_CLI, or CODEX_CLI
-MODEL=                   # optional; backend model/alias. Defaults: Bedrock Claude uses global.anthropic.claude-haiku-4-5-20251001-v1:0, Claude API uses claude-haiku-4-5-20251001, Claude CLI uses haiku, Codex CLI uses its own configured default. Set explicitly for Codex-backed testing, e.g. gpt-5.4-mini
+MODEL=                   # optional; email backend model/alias. Defaults: Bedrock Claude uses global.anthropic.claude-haiku-4-5-20251001-v1:0, Claude API uses claude-haiku-4-5-20251001, Claude CLI uses haiku, Codex CLI uses its own configured default. Set explicitly for Codex-backed testing, e.g. gpt-5.4-mini
 
 # Local dev / testing
 MODE=TEST                # optional; limits test scripts to 1 article per category (faster, fewer tokens)

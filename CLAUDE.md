@@ -4,16 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-Two parallel pipelines, both fetching from the shared RSS source config (`RSS_SOURCES` in `src/core/config.py`):
-- **Email pipeline** (`src/pipelines/email_pipeline.py`): RSS + gas prices + US market data → configured LLM backend → HTML email via Gmail SMTP/App Password. Runs on GitHub Actions daily.
-- **Telegram pipeline** (`src/pipelines/telegram_pipeline.py`): RSS → Claude CLI (subscription, not API) → Telegram message.
+Single email pipeline (`src/pipelines/email_pipeline.py`): RSS + gas prices + US market data → configured LLM backend → HTML email via Gmail SMTP/App Password. Runs on GitHub Actions daily. RSS sources live in `RSS_SOURCES` in `src/core/config.py`.
 
 ## Commands
 
 ```bash
 uv sync                                        # install dependencies
 uv run src/pipelines/email_pipeline.py         # email pipeline: fetch → summarize → email
-uv run src/pipelines/telegram_pipeline.py      # telegram pipeline: fetch → summarize → telegram
 uv run tests/test_rss.py                       # check RSS feed reachability + article counts
 uv run tests/test_llm.py                       # generate digest + save preview (no email)
 uv run tests/test_email.py                     # send last generated preview via Gmail (run test_llm.py first)
@@ -37,14 +34,13 @@ src/
     mailer.py              # send_email_gmail() — Gmail SMTP/App Password path used in GA; Gmail API support retained
   pipelines/               # entry points
     email_pipeline.py      # generate_digest() → save_preview() → send_email(); main() runs all three
-    telegram_pipeline.py   # telegram pipeline
   prompts/
     email_digest.md        # digest prompt template ($articles, $stock_block placeholders)
   templates/
     email.html             # HTML email wrapper/CSS ($date_str, $body_html placeholders)
 ```
 
-Both pipelines share `src/core/`. Test scripts add `src/` to `sys.path` and import via `core.*`.
+Test scripts add `src/` to `sys.path` and import via `core.*`.
 
 **Pipeline flow:**
 1. `fetch_rss_articles()` — fetches regular-category RSS, filters to last 24h (UTC), extracts images via `extract_image_url()`
@@ -66,7 +62,6 @@ Required in `.env` for local dev (loaded via `python-dotenv` in `config.py`):
 - `AWS_REGION`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_TO` — email pipeline (current GitHub Actions path uses AWS OIDC + Bedrock Claude)
 - `ANTHROPIC_API_KEY` — required only for `BACKEND=CLAUDE_API`
 - `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN` — optional Gmail API delivery mode, not currently configured in GitHub Actions
-- `OPENCLAW_CONFIG`, `MODEL`, `TELEGRAM_CHAT_ID` — telegram pipeline
 - `BACKEND=BEDROCK_CLAUDE|CLAUDE_API|CLAUDE_CLI|CODEX_CLI` — email summary backend
 - `MODEL` — optional backend model/alias. Defaults: Bedrock Claude uses `global.anthropic.claude-haiku-4-5-20251001-v1:0`, Claude API uses `claude-haiku-4-5-20251001`, Claude CLI uses `haiku`, Codex CLI uses its own configured default if unset. For Codex-backed testing, set this explicitly, for example `gpt-5.4-mini`.
 - `MODE=TEST` — optional; limits to 1 article per category in pipeline (faster, fewer tokens)

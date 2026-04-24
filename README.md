@@ -1,11 +1,10 @@
 # daily-news-summary
 
-Two parallel pipelines that fetch RSS feeds and deliver Chinese summaries via different channels:
+Email pipeline that fetches RSS feeds and delivers a Chinese summary daily:
 
 - **Email pipeline** — RSS + gas prices + market data → configured LLM backend → HTML email via Gmail SMTP/App Password. Runs daily on GitHub Actions.
-- **Telegram pipeline** — Claude CLI (subscription) → Telegram message. Run manually or on schedule.
 
-Both pipelines fetch articles published in the last 24 hours, select the most newsworthy items, and write concise Chinese summaries. The email pipeline also appends Vancouver/Seattle gas prices and an optional US market pulse section.
+Articles from the last 24 hours are selected and summarised in Chinese. The digest also appends Vancouver/Seattle gas prices and an optional US market pulse section.
 
 ## Categories and sources
 
@@ -24,8 +23,7 @@ The email pipeline also fetches a separate stock-market RSS set for the market p
 ### Prerequisites
 
 - [uv](https://docs.astral.sh/uv/)
-- **Email pipeline:** One summary backend (`BACKEND=BEDROCK_CLAUDE`, `CLAUDE_API`, `CLAUDE_CLI`, or `CODEX_CLI`) + Gmail account with an [App Password](https://myaccount.google.com/apppasswords). Gmail API OAuth2 support exists in code, but the current GitHub Actions setup uses SMTP/App Password.
-- **Telegram pipeline:** [Claude CLI](https://claude.ai/code) logged in with a Claude subscription + a Telegram bot token
+- One summary backend (`BACKEND=BEDROCK_CLAUDE`, `CLAUDE_API`, `CLAUDE_CLI`, or `CODEX_CLI`) + Gmail account with an [App Password](https://myaccount.google.com/apppasswords). Gmail API OAuth2 support exists in code, but the current GitHub Actions setup uses SMTP/App Password.
 
 ### Local development
 
@@ -52,11 +50,7 @@ uv sync
 # GMAIL_CLIENT_SECRET=...
 # GMAIL_REFRESH_TOKEN=...
 #
-# Telegram pipeline:
-# OPENCLAW_CONFIG=/path/to/.openclaw/openclaw.json
-# TELEGRAM_CHAT_ID=your_chat_id
-#
-# Shared:
+# Local testing:
 # MODE=TEST
 
 # Run email pipeline
@@ -65,9 +59,6 @@ uv run src/pipelines/email_pipeline.py
 # Local subscription-backed testing examples:
 # BACKEND=CLAUDE_CLI MODEL=haiku MODE=TEST uv run tests/test_llm.py
 # BACKEND=CODEX_CLI MODEL=gpt-5.4-mini MODE=TEST uv run tests/test_llm.py
-
-# Run Telegram pipeline
-uv run src/pipelines/telegram_pipeline.py
 ```
 
 ### Testing
