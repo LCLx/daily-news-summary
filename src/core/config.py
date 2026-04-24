@@ -54,12 +54,15 @@ STOCK_INDICES = [
     {'symbol': 'US10Y', 'name': '10Y Treasury', 'unit': 'bp'},
 ]
 
-# Claude model
+# LLM backend
+BACKEND = os.environ.get('BACKEND', 'CLAUDE_API').upper()
+MODEL = os.environ.get('MODEL')
 ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')
-CLAUDE_MODEL = os.environ.get('CLAUDE_MODEL') or 'claude-haiku-4-5-20251001'      # API model ID
-CLAUDE_CLI_MODEL = os.environ.get('CLAUDE_CLI_MODEL', 'haiku')                    # CLI alias
-CLAUDE_MAX_TOKENS = 8000
-CLAUDE_MAX_RETRIES = 2
+MAX_TOKENS = 8000
+MAX_RETRIES = 2
+
+DEFAULT_CLAUDE_API_MODEL = 'claude-haiku-4-5-20251001'
+DEFAULT_CLAUDE_CLI_MODEL = 'haiku'
 
 # Gmail API (OAuth2)
 GMAIL_USER = os.environ.get('GMAIL_USER')

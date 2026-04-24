@@ -3,12 +3,12 @@ from core.config import CATEGORY_EMOJIS, CATEGORY_ZH_TO_RSS
 
 def resolve_references(parsed_json, all_articles):
     """
-    Resolve ref fields in Claude's JSON 'sections' output to full article data.
+    Resolve ref fields in the LLM JSON 'sections' output to full article data.
 
     Refs are number-only (e.g. "3"), resolved against the section's category.
 
     Args:
-        parsed_json: Parsed JSON dict from Claude (with "sections" key)
+        parsed_json: Parsed JSON dict from the LLM backend (with "sections" key)
         all_articles: Original article dict keyed by RSS category name
 
     Returns:
@@ -64,7 +64,7 @@ def resolve_market_pulse(parsed_json, stock_articles):
     Resolve market_pulse refs to full article data for the 'related reading' strip.
 
     Args:
-        parsed_json: Parsed JSON dict from Claude (may contain "market_pulse" key)
+        parsed_json: Parsed JSON dict from the LLM backend (may contain "market_pulse" key)
         stock_articles: Stock-market articles fed to Claude as market_pulse input
 
     Returns:

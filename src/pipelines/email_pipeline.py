@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Daily news digest: RSS → Claude API → HTML email via Gmail SMTP.
+Daily news digest: RSS → configured LLM backend → HTML email via Gmail SMTP.
 Runs on GitHub Actions daily at 08:00 PST (UTC 16:00).
 """
 
@@ -13,7 +13,7 @@ from datetime import datetime
 
 from core.config import RSS_SOURCES, STOCK_RSS_FEEDS, EMAIL_TO
 from core.rss import fetch_rss_articles
-from core.claude_client import generate_summary_with_claude
+from core.llm_client import generate_summary
 from core.digest import resolve_references, resolve_market_pulse
 from core.renderer import build_email_html_from_json
 from core.mailer import send_email_gmail, delete_sent_emails
@@ -26,7 +26,7 @@ SIMPLE_MODE = os.environ.get('MODE', '').upper() == 'TEST'
 
 def generate_digest():
     """
-    Fetch RSS + gas prices, summarize with Claude, render HTML.
+    Fetch RSS + gas prices, summarize with the configured LLM backend, render HTML.
 
     Returns:
         (email_html, parsed_json) or (None, None) if no articles found.
@@ -79,9 +79,9 @@ def generate_digest():
     if not stock_indices:
         print("  ⚠️ Stock indices unavailable, skipping")
 
-    # 4. Generate digest via Claude (JSON output with sections + market_pulse)
+    # 4. Generate digest via configured LLM backend (JSON output with sections + market_pulse)
     stock_snapshot = format_snapshot_for_prompt(stock_indices)
-    json_str = generate_summary_with_claude(
+    json_str = generate_summary(
         all_articles,
         stock_articles=stock_articles,
         stock_snapshot=stock_snapshot,

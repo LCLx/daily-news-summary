@@ -2,14 +2,14 @@
 
 ## Phase 1 — Completed
 
-**Goal:** Daily automated news digest — fetch RSS, summarize in Chinese via Claude, deliver by email.
+**Goal:** Daily automated news digest — fetch RSS, summarize in Chinese via a configured LLM backend, deliver by email.
 
 ### Implemented
 
 - **RSS fetching:** 5 categories (Tech & AI, Global Affairs, Business & Finance, Pacific Northwest, Health & Science), 12 sources total
 - **Time filtering:** articles from the last 24 hours only
 - **Image extraction:** multi-strategy (media_thumbnail → media_content → HTML img tag)
-- **Claude summarization:** Anthropic API or Claude CLI, Chinese structured JSON output with `json_repair` fallback
+- **LLM summarization:** Claude API, Claude CLI, or Codex CLI, Chinese structured JSON output with `json_repair` fallback
 - **HTML email:** structured digest rendered to styled HTML, delivered via Gmail SMTP/App Password in the current deployment
 - **Extras:** Vancouver/Seattle gas prices and optional US market pulse section
 - **Scheduled automation:** GitHub Actions daily schedule plus manual trigger

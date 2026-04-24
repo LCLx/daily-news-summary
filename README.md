@@ -2,7 +2,7 @@
 
 Two parallel pipelines that fetch RSS feeds and deliver Chinese summaries via different channels:
 
-- **Email pipeline** — RSS + gas prices + market data → Claude API → HTML email via Gmail SMTP/App Password. Runs daily on GitHub Actions.
+- **Email pipeline** — RSS + gas prices + market data → configured LLM backend → HTML email via Gmail SMTP/App Password. Runs daily on GitHub Actions.
 - **Telegram pipeline** — Claude CLI (subscription) → Telegram message. Run manually or on schedule.
 
 Both pipelines fetch articles published in the last 24 hours, select the most newsworthy items, and write concise Chinese summaries. The email pipeline also appends Vancouver/Seattle gas prices and an optional US market pulse section.
@@ -24,7 +24,7 @@ The email pipeline also fetches a separate stock-market RSS set for the market p
 ### Prerequisites
 
 - [uv](https://docs.astral.sh/uv/)
-- **Email pipeline:** An [Anthropic API key](https://console.anthropic.com/) + Gmail account with an [App Password](https://myaccount.google.com/apppasswords). Gmail API OAuth2 support exists in code, but the current GitHub Actions setup uses SMTP/App Password.
+- **Email pipeline:** One summary backend (`BACKEND=CLAUDE_API`, `CLAUDE_CLI`, or `CODEX_CLI`) + Gmail account with an [App Password](https://myaccount.google.com/apppasswords). Gmail API OAuth2 support exists in code, but the current GitHub Actions setup uses SMTP/App Password.
 - **Telegram pipeline:** [Claude CLI](https://claude.ai/code) logged in with a Claude subscription + a Telegram bot token
 
 ### Local development
@@ -36,8 +36,11 @@ cd daily-news-summary
 # Install dependencies
 uv sync
 
-# Configure environment — create a .env file:
+# Configure environment:
+# cp .env.example .env
 # Email pipeline:
+# BACKEND=CLAUDE_API        # or CLAUDE_CLI / CODEX_CLI for local subscription-backed testing
+# MODEL=claude-haiku-4-5-20251001
 # ANTHROPIC_API_KEY=...
 # GMAIL_USER=your.address@gmail.com
 # Current GitHub Actions path:
@@ -53,10 +56,14 @@ uv sync
 # TELEGRAM_CHAT_ID=your_chat_id
 #
 # Shared:
-# CLAUDE_MODEL=claude-haiku-4-5-20251001
+# MODE=TEST
 
 # Run email pipeline
 uv run src/pipelines/email_pipeline.py
+
+# Local subscription-backed testing examples:
+# BACKEND=CLAUDE_CLI MODEL=haiku MODE=TEST uv run tests/test_llm.py
+# BACKEND=CODEX_CLI MODE=TEST uv run tests/test_llm.py
 
 # Run Telegram pipeline
 uv run src/pipelines/telegram_pipeline.py
@@ -71,13 +78,13 @@ uv run pytest
 # Test RSS feed availability
 uv run tests/test_rss.py
 
-# Test Claude output with real RSS data, saves generated/preview.html (no email sent)
-uv run tests/test_claude.py
+# Test configured LLM output with real RSS data, saves generated/preview.html (no email sent)
+uv run tests/test_llm.py
 
 # Test Gmail email delivery using the last generated preview
 uv run tests/test_email.py
 
-# Full end-to-end integration test (RSS → Claude → email)
+# Full end-to-end integration test (RSS → LLM → email)
 uv run tests/test_integration.py
 ```
 
@@ -98,7 +105,8 @@ Gmail API OAuth2 secrets (`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRE
 
 | Variable | Description |
 |---|---|
-| `CLAUDE_MODEL` | Claude model ID (see options below, default: `claude-haiku-4-5-20251001`) |
+| `BACKEND` | Summary backend: `CLAUDE_API`, `CLAUDE_CLI`, or `CODEX_CLI`. The GitHub Actions workflow sets `CLAUDE_API` directly. |
+| `MODEL` | Optional backend model/alias. Defaults: Claude API uses `claude-haiku-4-5-20251001`, Claude CLI uses `haiku`, Codex CLI uses its own configured default |
 
 Available models:
 
@@ -116,7 +124,7 @@ The workflow runs automatically on schedule and can also be triggered manually v
 |---|---|
 | RSS feeds | `src/core/config.py` — `RSS_SOURCES` dict |
 | Stock market feeds / indices | `src/core/config.py` — `STOCK_RSS_FEEDS` and `STOCK_INDICES` |
-| Claude prompt / selection rules | `src/prompts/email_digest.md` |
+| Digest prompt / selection rules | `src/prompts/email_digest.md` |
 | Email layout and CSS | `src/templates/email.html` |
 | Lookback window (default 24h) | `hours` parameter in `fetch_rss_articles()` in `src/core/rss.py` |
 
@@ -124,7 +132,8 @@ The workflow runs automatically on schedule and can also be triggered manually v
 
 | Service | Cost |
 |---|---|
-| Claude (Haiku, default) | ~$0.01/run · ~$0.30/month |
+| Claude API (Haiku, default for `BACKEND=CLAUDE_API`) | ~$0.01/run · ~$0.30/month |
+| Claude CLI / Codex CLI local testing | Uses your local subscription login, not the Anthropic API key |
 | Gmail SMTP / Gmail API | Free |
 
 ## Stack

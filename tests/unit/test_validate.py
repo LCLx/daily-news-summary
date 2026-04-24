@@ -1,5 +1,5 @@
 import pytest
-from core.claude_client import _validate_digest_structure, _normalize_digest
+from core.llm_client import _validate_digest_structure, _normalize_digest
 
 
 class TestValidateDigestStructure:

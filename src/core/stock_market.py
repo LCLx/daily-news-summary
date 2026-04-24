@@ -107,7 +107,7 @@ def _format_bp(change_raw, direction):
 
 
 def format_snapshot_for_prompt(indices):
-    """Compact one-line-per-index format for Claude prompt (token-frugal)."""
+    """Compact one-line-per-index format for the summary prompt."""
     if not indices:
         return ''
     return '\n'.join(f"{i['name']}: {i['price']} ({i['change_display']})" for i in indices)

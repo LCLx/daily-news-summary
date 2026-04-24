@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test Claude API output with real RSS articles, skipping email sending.
+Test configured LLM output with real RSS articles, skipping email sending.
 Saves generated/preview.html and generated/preview.json for inspection.
 """
 

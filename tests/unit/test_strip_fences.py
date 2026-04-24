@@ -1,4 +1,4 @@
-from core.claude_client import _strip_fences
+from core.llm_client import _strip_fences
 
 
 class TestStripFences:

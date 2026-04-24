@@ -10,7 +10,7 @@ from core.config import RSS_SOURCES
 from core.rss import fetch_rss_articles
 
 OPENCLAW_CONFIG = os.environ['OPENCLAW_CONFIG']
-CLAUDE_MODEL = os.environ['CLAUDE_MODEL']
+MODEL = os.environ.get('MODEL', 'haiku')
 
 PROMPT_TEMPLATE = """以下是今日各板块的英文新闻（已按板块分类）：
 
@@ -52,7 +52,7 @@ def generate_summary(articles_text):
     claude_bin = shutil.which('claude') or 'claude'
     prompt = PROMPT_TEMPLATE.format(articles=articles_text)
     result = subprocess.run(
-        [claude_bin, '--model', CLAUDE_MODEL,
+        [claude_bin, '--model', MODEL,
          '--system-prompt', 'You are a helpful multilingual assistant. Output only the requested HTML content, no extra commentary.',
          '--print', prompt],
         capture_output=True, text=True, stdin=subprocess.DEVNULL
