@@ -27,9 +27,9 @@ from core.config import (
 _PROMPT_PATH = Path(__file__).parent.parent / 'prompts' / 'email_digest.md'
 _SUPPORTED_BACKENDS = 'BEDROCK_CLAUDE, CLAUDE_API, CLAUDE_CLI, or CODEX_CLI'
 
-_FORMAT_INSTRUCTIONS = """输出一个 JSON 对象，不要任何其他内容（无 markdown、无开场白、无结束语）。
+_FORMAT_INSTRUCTIONS = """只输出一个 JSON 对象，无 markdown、无其他文字。
 
-**JSON 格式：**
+**格式：**
 {
   "sections": [
     {"category": "科技与AI", "items": [
@@ -42,10 +42,7 @@ _FORMAT_INSTRUCTIONS = """输出一个 JSON 对象，不要任何其他内容（
     "watch": ["前瞻1", "前瞻2"],
     "refs": ["1", "3"]
   }
-}
-
-market_pulse 引用的是"股市"板块的文章编号。若股市素材不足，整个 market_pulse 设为 null。
-只输出合法 JSON，不要任何其他内容。"""
+}"""
 
 
 def _normalize_digest(data):
@@ -325,7 +322,7 @@ def _build_prompt(all_articles, stock_articles, stock_snapshot):
             continue
         block = f"\n## {category}\n\n"
         for i, article in enumerate(articles[:15], 1):
-            block += f"[{i}] {article['title']} | src: {article['source']}\n{article['summary']}\n\n"
+            block += f"[{i}] {article['title']} | {article['source']}\n{article['summary']}\n\n"
         articles_by_category.append(block)
 
     full_content = "\n".join(articles_by_category)
@@ -350,7 +347,7 @@ def _format_stock_block(stock_articles, stock_snapshot):
         parts.append('## 股市（基于此板块生成 market_pulse）\n')
         for i, article in enumerate(stock_articles[:20], 1):
             parts.append(
-                f"[{i}] {article['title']} | src: {article['source']}\n"
+                f"[{i}] {article['title']} | {article['source']}\n"
                 f"{article['summary']}\n"
             )
     if stock_snapshot:

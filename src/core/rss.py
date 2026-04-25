@@ -56,6 +56,17 @@ def extract_image_url(entry):
     return None
 
 
+def _clean_summary(raw, max_chars=220):
+    """Strip HTML tags + unescape entities, then truncate. Keeps summary token-frugal."""
+    if not raw:
+        return ''
+    text = html.unescape(raw)
+    # Only strip real tag shapes; preserves text like "value < 5 and > 3".
+    text = re.sub(r'<[a-zA-Z/!][^>]*>', ' ', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text[:max_chars]
+
+
 _SOURCE_NAME_OVERRIDES = {
     'www.ft.com': 'Financial Times',
     'feeds.a.dj.com': 'Wall Street Journal',
@@ -122,7 +133,7 @@ def fetch_rss_articles(category, feeds, hours=24, max_per_feed=4):
                         'link': entry.link,
                         'pub_date': pub_date,
                         'published': pub_date.strftime('%Y-%m-%d %H:%M'),
-                        'summary': entry.get('summary', '')[:300],
+                        'summary': _clean_summary(entry.get('summary', '')),
                         'source': source_name,
                         'category': category,
                         'image_url': extract_image_url(entry),

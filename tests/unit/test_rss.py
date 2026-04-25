@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from core import rss
-from core.rss import extract_image_url, _resolve_source_name
+from core.rss import extract_image_url, _resolve_source_name, _clean_summary
 
 
 class _Entry(dict):
@@ -88,6 +88,39 @@ class TestResolveSourceName:
 
     def test_fallback_to_feed_title(self):
         assert _resolve_source_name('https://unknown.com/feed', 'My Blog') == 'My Blog'
+
+
+class TestCleanSummary:
+    def test_empty_input(self):
+        assert _clean_summary('') == ''
+        assert _clean_summary(None) == ''
+
+    def test_strips_tags_with_space_preserves_word_boundary(self):
+        # Adjacent block tags must not glue words together.
+        assert _clean_summary('<p>Hello</p><p>World</p>') == 'Hello World'
+
+    def test_unescapes_entities(self):
+        assert _clean_summary('AT&amp;T and M&amp;S') == 'AT&T and M&S'
+
+    def test_escaped_tags_are_stripped_not_preserved_as_literal(self):
+        # Unescape runs before tag strip, so &lt;script&gt; gets cleaned like a real tag.
+        assert _clean_summary('safe &lt;script&gt;x&lt;/script&gt; text') == 'safe x text'
+
+    def test_preserves_bare_angle_brackets_in_text(self):
+        # Scientific/financial text like "value < 5 and > 3" must survive unescape + strip.
+        assert _clean_summary('value &lt; 5 and &gt; 3') == 'value < 5 and > 3'
+
+    def test_collapses_whitespace(self):
+        assert _clean_summary('a   b\n\n\tc') == 'a b c'
+
+    def test_truncates_to_max_chars(self):
+        raw = 'x' * 500
+        assert len(_clean_summary(raw)) == 220
+
+    def test_truncates_after_cleaning(self):
+        # HTML-heavy input should not eat into the 220-char budget.
+        raw = '<p>' + 'x' * 250 + '</p>'
+        assert _clean_summary(raw) == 'x' * 220
 
 
 class TestFetchRssArticles:
